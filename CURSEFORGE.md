@@ -4,9 +4,11 @@
 
 **Run your guild from one window.**
 
-Village Command is a guild overview and progression suite. See everyone who's online, keep the roster tidy with notes and officer notes, promote or demote one member or fifty at once (Classic Era), and watch the guild grow with progression tracking and fun stats. If you use **GuildForge** or **Un-Nina Bank**, they're in the same window too.
+Village Command is a guild overview and progression suite. See everyone who's online, keep the roster tidy with notes and officer notes, promote or demote one member or fifty at once (Classic Era only), and watch the guild grow with progression tracking and fun stats. If you use **[GuildForge](https://www.curseforge.com/wow/addons/guild-forge-guild-profession-tracker)** or **[Un-Nina Bank](https://www.curseforge.com/wow/addons/un-ninja-bank-guild-bank-sharing)**, they're in the same window too.
 
 Built for **WoW Forever**. Also works on **Classic Era** and **Retail**.
+
+> **On WoW Forever, Village Command can't promote, demote or change notes.** Blizzard only lets the game's own guild window (J) change ranks, public notes and officer notes on Forever, and blocks every addon from doing it. On Forever you can see, search and track ranks and notes in Village Command, but **change them in the guild window**. The one exception is the **Promote helper** on the Promotions tab: it can promote people on your checklist, a few per click, by having the game run its own `/gpromote` command. There is no way around it for demoting or notes. Mass promote, demote and note changes work on **Classic Era**.
 
 ![The Overview dashboard: class mix ring, online and level-cap gauges, the week's climbers on a podium and the race to the cap](https://raw.githubusercontent.com/kota150/Village-Command/main/docs/screenshots/overview.webp)
 
@@ -28,10 +30,10 @@ Built for **WoW Forever**. Also works on **Classic Era** and **Retail**.
 
 - Class-colored names, level, rank, zone (or how long since they were last on), public note and officer note.
 - **Search** names, notes, officer notes, zones, classes and ranks. **Filter** to online only, one rank, a level range, or members away 14, 30 or 90+ days. Click a column to sort.
-- **Click a member** to see their notes and rank; on Classic Era, edit them right there or promote and demote. **Right-click** to whisper or invite.
+- **Click a member** to see their notes and rank. On **Classic Era** you can edit the notes there and promote or demote; on **WoW Forever** they're read-only (use the guild window). **Right-click** to whisper or invite.
 - Big guilds scroll smoothly: only the rows on screen are drawn.
 
-## Mass promote, demote and notes (Classic Era)
+## Mass promote, demote and notes (Classic Era only)
 
 Tick members, shift-click a range, or tick everyone your filters show, then:
 
@@ -40,7 +42,7 @@ Tick members, shift-click a range, or tick everyone your filters show, then:
 
 It asks first and names who's affected, sends changes one at a time so the server takes every one, waits out combat, and can be cancelled part way. It follows the game's rules: you can only move members ranked below you, and anyone your rank can't change is skipped with the reason.
 
-**WoW Forever: notes are view-only, promotions go through the Promote helper.** Forever only lets the game's own guild window change notes, and blocks addons from promoting directly. Village Command shows, searches and tracks notes there, and its **Promote helper** promotes through the game's `/gpromote` command, several people per click. Mass promote, demote and notes work on **Classic Era**. If the game blocks an action anywhere else, Village Command stops, says so once, and greys that action out with the reason.
+**Not on WoW Forever.** None of the above works on Forever: Blizzard blocks addons from promoting, demoting and changing public or officer notes there, so the roster drops the tick boxes and mass actions and points you to the guild window (J). The only rank change Village Command can make on Forever is through the **Promote helper**, which has the game run `/gpromote` from your clicks. If the game blocks an action anywhere else, Village Command stops, says so once, and greys that action out with the reason.
 
 ## Shared history
 
@@ -76,8 +78,8 @@ History is recorded by your own client as it sees the roster, so these fill in o
 
 Both are optional. When they're installed:
 
-- **[GuildForge](https://github.com/TheFrosty02/GuildForge):** a **Professions** page with each profession's members, top skill and online crafters, crafters online right now, and professions in every member's tooltip.
-- **[Un-Nina Bank](https://github.com/kota150/GuildBankToons):** a **Guild Bank** page with bank gold and its 14-day history, bank toons and tabs, open requests, and buttons straight to the bank's Requests, Ledger and Goals. Bank toons are tagged in the roster.
+- **[GuildForge](https://www.curseforge.com/wow/addons/guild-forge-guild-profession-tracker):** a **Professions** page with each profession's members, top skill and online crafters, crafters online right now, and professions in every member's tooltip.
+- **[Un-Nina Bank](https://www.curseforge.com/wow/addons/un-ninja-bank-guild-bank-sharing):** a **Guild Bank** page with bank gold and its 14-day history, bank toons and tabs, open requests, and buttons straight to the bank's Requests, Ledger and Goals. Bank toons are tagged in the roster.
 
 ## Getting started
 
