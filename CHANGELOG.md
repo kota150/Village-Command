@@ -2,6 +2,30 @@
 
 All notable changes to Village Command are listed here.
 
+## [1.1.0] - 2026-11-08
+
+### Added
+- **The Overview is a dashboard of graphs**, each in its own style: a beaded ring of the class mix, dot gauges for who's online and the level-cap club, a **Climbers of the week** podium, a **Race to the cap** leaderboard, a line graph of a typical day, a **weekly rhythm** heat map (day by hour), a **Hall of fame** of everyone who hit the cap, bars of levels gained per day and of the level spread, and who's online as a compact grid. Hover for details; click a name to open them in the roster.
+- **Level-up celebrations.** When a guildmate passes one of your chosen levels (20, 40 and 50 to start), a raid-warning style message congratulates them on your screen; at the level cap, a banner with fireworks and the level-up fanfare. Choose the levels, or turn the message, the banner or the sound off, under Settings > Celebrations, with previews. Only level-ups seen while you're online count.
+- **Promote helper (WoW Forever).** From a rule on the Promotions tab, a small window lines up the next few people on the list; each click of Promote has the game run a `/gpromote Name` line for each of them, as if you'd typed them. That works on Forever even though addons can't promote directly. Up to 5 per click by default (1 to 10, and as many as fit in a 255-character macro). Village Command checks the roster after each click: anyone who didn't go through stays at the front, the number per click drops to what the server actually took (and is remembered), anyone missed twice is set aside, and it says plainly if the game didn't promote anyone. It hides in combat and never changes during it. There's no chat command for notes.
+- **Shared history.** Guildmates running Village Command compare notes at login: first-seen dates ("days in the guild"), level history and the activity feed now cover everyone's playtime, not just yours. It's light: a short hello at login, and only when someone's history differs, a few dozen small messages (about 50 bytes per member) at the game's pace. Joins, leaves, rank changes and earlier first-seen dates are only taken from trusted ranks (Settings > Trust shared history from), or for first-seen dates, two guildmates who agree. Turn it off under Settings. `/vc sync` compares now; `/vc status` shows the counters.
+- **Promotions tab: a promotion checklist.** Officers set rules (from rank, to rank, minimum level, days in the guild, online within so many days) and Village Command lists everyone who qualifies, online first. On WoW Forever, work through it in the game's guild window; on Classic Era, **Promote all** does it in one go. Members drop off as the roster shows their new rank, and the week's promotions are listed under each rule. Right-click to skip someone, or switch a whole rule off and on again, keeping its settings. Ready members are flagged in tooltips, counted in the minimap tooltip, and on Forever the roster's bottom bar links straight to the checklist. Also `/vc promotions`.
+
+### Changed
+- The window is larger (900 by 680), with wider roster columns.
+- **Minimap button:** now a guild tabard icon instead of "VC" text, laid out like other addons' minimap buttons. The AddOns list uses the same icon.
+- **Roster, bottom of the page:** the member editor is always in its own panel (with a hint until you click someone), and the mass-action bar shows what's ticked on the left with Promote, Demote, Set rank, Public notes and Officer notes on the right. The actions appear once something is ticked, and make way for the progress and Cancel while changes go out.
+
+### Fixed
+- On WoW Forever, Village Command now recognises you by first name and surname, as the roster does.
+- **"VillageCommand has been blocked from an action only available to the Blizzard UI"** on WoW Forever. Forever only lets its own guild window change ranks, public notes and officer notes, so Village Command no longer tries there: the roster is view-only on Forever (notes and ranks shown, searched and tracked, with a pointer to the guild window, J), without tick boxes, mass actions or dead buttons. Mass changes still work on Classic Era. If the game blocks any action anywhere else, Village Command stops the queue at once, says so in chat, and greys that action out with the reason, remembered per version of the game (`/vc unblock` tries again after a patch). `/vc status` lists what's blocked.
+- Promote, demote and note changes for one member now happen straight from your click instead of a moment later.
+- **Empty roster with 0 or 1 guildmates online, or more than 36** ("bad argument #2 to 'tonumber'"). The online count was being read as a number base. The roster now loads whatever the count.
+- **Empty roster after logging in** ("0 members", "the roster hasn't loaded yet"), most often after switching characters. The game can deliver the roster during the loading screen, and the server ignores another roster request for a few seconds after GuildForge or Un-Nina Bank asks, so Village Command never heard about it. It now reads the roster the game already has at login, when the window opens, on Refresh, and every so often while the window is open.
+- One roster entry the game hands back oddly is skipped and reported once in chat (and in `/vc status`), instead of stopping the whole roster from loading.
+- Pages no longer run under the scroll bar: rows, stat tiles and charts fit the visible width.
+- **Professions page:** each row shows the member count by the name, the best crafter and their skill in the bar, and who's online on the right, without being cut off.
+
 ## [1.0.0] - 2026-11-08
 
 First release. Built for **WoW Forever**; also runs on Classic Era and Retail.
