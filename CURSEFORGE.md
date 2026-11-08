@@ -4,7 +4,7 @@
 
 **Run your guild from one window.**
 
-Village Command is a guild overview and progression suite. See everyone who's online, keep the roster tidy with notes and officer notes, promote or demote one member or fifty at once (Classic Era only), and watch the guild grow with progression tracking and fun stats. If you use **[GuildForge](https://www.curseforge.com/wow/addons/guild-forge-guild-profession-tracker)** or **[Un-Nina Bank](https://www.curseforge.com/wow/addons/un-ninja-bank-guild-bank-sharing)**, they're in the same window too.
+Village Command is a guild overview and progression suite. See everyone who's online, keep the roster tidy with notes and officer notes, promote or demote one member or fifty at once (Classic Era only), and watch the guild grow with progression tracking and fun stats. If you use **[GuildForge](https://www.curseforge.com/wow/addons/guild-forge-guild-profession-tracker)** or **[Un-Ninja Bank](https://www.curseforge.com/wow/addons/un-ninja-bank-guild-bank-sharing)**, they're in the same window too.
 
 Built for **WoW Forever**. Also works on **Classic Era** and **Retail**.
 
@@ -74,12 +74,12 @@ History is recorded by your own client as it sees the roster, so these fill in o
 
 ![Fun Stats: peak online, busiest hour, hot spot, rarest class, superlatives and online by hour](https://raw.githubusercontent.com/kota150/Village-Command/main/docs/screenshots/fun-stats.webp)
 
-## Better with GuildForge and Un-Nina Bank
+## Better with GuildForge and Un-Ninja Bank
 
 Both are optional. When they're installed:
 
 - **[GuildForge](https://www.curseforge.com/wow/addons/guild-forge-guild-profession-tracker):** a **Professions** page with each profession's members, top skill and online crafters, crafters online right now, and professions in every member's tooltip.
-- **[Un-Nina Bank](https://www.curseforge.com/wow/addons/un-ninja-bank-guild-bank-sharing):** a **Guild Bank** page with bank gold and its 14-day history, bank toons and tabs, open requests, and buttons straight to the bank's Requests, Ledger and Goals. Bank toons are tagged in the roster.
+- **[Un-Ninja Bank](https://www.curseforge.com/wow/addons/un-ninja-bank-guild-bank-sharing):** a **Guild Bank** page with bank gold and its 14-day history, bank toons and tabs, open requests, and buttons straight to the bank's Requests, Ledger and Goals. Bank toons are tagged in the roster.
 
 ## Getting started
 

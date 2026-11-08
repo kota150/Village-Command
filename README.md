@@ -1,6 +1,6 @@
 # Village Command
 
-**Run your guild from one window.** Village Command is a guild overview and progression suite: see everyone who's online, manage the roster with notes and officer notes, promote and demote one member or fifty at once (Classic Era only), and watch the guild grow with progression tracking and fun stats. It also brings your other guild addons, **[GuildForge](https://www.curseforge.com/wow/addons/guild-forge-guild-profession-tracker)** and **[Un-Nina Bank](https://www.curseforge.com/wow/addons/un-ninja-bank-guild-bank-sharing)**, into the same window.
+**Run your guild from one window.** Village Command is a guild overview and progression suite: see everyone who's online, manage the roster with notes and officer notes, promote and demote one member or fifty at once (Classic Era only), and watch the guild grow with progression tracking and fun stats. It also brings your other guild addons, **[GuildForge](https://www.curseforge.com/wow/addons/guild-forge-guild-profession-tracker)** and **[Un-Ninja Bank](https://www.curseforge.com/wow/addons/un-ninja-bank-guild-bank-sharing)**, into the same window.
 
 Built for **WoW Forever**, and also works on **Classic Era** and **Retail**.
 
@@ -63,13 +63,13 @@ History is recorded by your client as it sees the roster, so Progression and Fun
 
 ![Fun Stats: peak online, busiest hour, hot spot, rarest class, superlatives and online by hour](docs/screenshots/fun-stats.webp)
 
-### With GuildForge and Un-Nina Bank
+### With GuildForge and Un-Ninja Bank
 Both are optional. When they're installed:
 
 - **[GuildForge](https://www.curseforge.com/wow/addons/guild-forge-guild-profession-tracker)**: a **Professions** page with each profession's members, top skill and online crafters, a list of crafters online now, and professions in every member's tooltip.
-- **[Un-Nina Bank](https://www.curseforge.com/wow/addons/un-ninja-bank-guild-bank-sharing)**: a **Guild Bank** page with bank gold and its 14-day history, bank toons and tabs, and open requests, with buttons straight to the bank's Requests, Ledger and Goals. Bank toons are tagged in the roster.
+- **[Un-Ninja Bank](https://www.curseforge.com/wow/addons/un-ninja-bank-guild-bank-sharing)**: a **Guild Bank** page with bank gold and its 14-day history, bank toons and tabs, and open requests, with buttons straight to the bank's Requests, Ledger and Goals. Bank toons are tagged in the roster.
 
-The **GuildForge** and **Un-Nina Bank** buttons at the top of the window open those addons directly.
+The **GuildForge** and **Un-Ninja Bank** buttons at the top of the window open those addons directly.
 
 ## Commands
 
@@ -96,7 +96,7 @@ The addon folder must be named `VillageCommand`. Copy or link this repository in
 
 ## Tests
 
-`tests/run_tests.py` runs the addon in a stand-in WoW environment with a simulated guild (WoW's Lua 5.1, through lupa): loading, every page, filters, mass promote / demote / set rank, mass notes, progression tracking, the GuildForge and Un-Nina Bank pages, and WoW Forever names.
+`tests/run_tests.py` runs the addon in a stand-in WoW environment with a simulated guild (WoW's Lua 5.1, through lupa): loading, every page, filters, mass promote / demote / set rank, mass notes, progression tracking, the GuildForge and Un-Ninja Bank pages, and WoW Forever names.
 
 ```bash
 python3 -m venv .venv && .venv/bin/pip install lupa && .venv/bin/python tests/run_tests.py

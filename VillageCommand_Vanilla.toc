@@ -1,6 +1,6 @@
 ## Interface: 11509
 ## Title: |cffe7c483Village Command|r
-## Notes: Guild overview and progression: online members, roster notes and officer notes, mass promote and demote, fun stats, and GuildForge and Un-Nina Bank in one window
+## Notes: Guild overview and progression: online members, roster notes and officer notes, mass promote and demote, fun stats, and GuildForge and Un-Ninja Bank in one window
 ## Author: Kota150
 ## Version: @project-version@
 ## X-Curse-Project-ID: 1792191

@@ -21,7 +21,7 @@ All notable changes to Village Command are listed here.
 - **"VillageCommand has been blocked from an action only available to the Blizzard UI"** on WoW Forever. Forever only lets its own guild window change ranks, public notes and officer notes, so Village Command no longer tries there: the roster is view-only on Forever (notes and ranks shown, searched and tracked, with a pointer to the guild window, J), without tick boxes, mass actions or dead buttons. Mass changes still work on Classic Era. If the game blocks any action anywhere else, Village Command stops the queue at once, says so in chat, and greys that action out with the reason, remembered per version of the game (`/vc unblock` tries again after a patch). `/vc status` lists what's blocked.
 - Promote, demote and note changes for one member now happen straight from your click instead of a moment later.
 - **Empty roster with 0 or 1 guildmates online, or more than 36** ("bad argument #2 to 'tonumber'"). The online count was being read as a number base. The roster now loads whatever the count.
-- **Empty roster after logging in** ("0 members", "the roster hasn't loaded yet"), most often after switching characters. The game can deliver the roster during the loading screen, and the server ignores another roster request for a few seconds after GuildForge or Un-Nina Bank asks, so Village Command never heard about it. It now reads the roster the game already has at login, when the window opens, on Refresh, and every so often while the window is open.
+- **Empty roster after logging in** ("0 members", "the roster hasn't loaded yet"), most often after switching characters. The game can deliver the roster during the loading screen, and the server ignores another roster request for a few seconds after GuildForge or Un-Ninja Bank asks, so Village Command never heard about it. It now reads the roster the game already has at login, when the window opens, on Refresh, and every so often while the window is open.
 - One roster entry the game hands back oddly is skipped and reported once in chat (and in `/vc status`), instead of stopping the whole roster from loading.
 - Pages no longer run under the scroll bar: rows, stat tiles and charts fit the visible width.
 - **Professions page:** each row shows the member count by the name, the best crafter and their skill in the bar, and who's online on the right, without being cut off.
@@ -33,7 +33,7 @@ First release. Built for **WoW Forever**; also runs on Classic Era and Retail.
 ### Overview
 - Members, online now, members at the level cap and the average level at a glance, plus the message of the day.
 - **Everyone online**, sorted by rank, with level and zone. Click anyone to open them in the roster.
-- The latest guild activity, and the state of GuildForge and Un-Nina Bank with buttons to open them.
+- The latest guild activity, and the state of GuildForge and Un-Ninja Bank with buttons to open them.
 
 ### Roster
 - The whole guild in one fast list (only the rows on screen are drawn, so big guilds scroll smoothly): name in class colors, level, rank, zone or time since last online, note and officer note.
@@ -57,7 +57,7 @@ First release. Built for **WoW Forever**; also runs on Classic Era and Retail.
 
 ### Works with your other guild addons
 - **GuildForge**: a Professions page with members, top skill and online crafters per profession, crafters online now, and professions in member tooltips.
-- **Un-Nina Bank**: a Guild Bank page with bank gold and its 14-day history, bank toons and tabs, and open requests, with buttons straight to the bank's tabs. Bank toons are tagged in the roster.
+- **Un-Ninja Bank**: a Guild Bank page with bank gold and its 14-day history, bank toons and tabs, and open requests, with buttons straight to the bank's tabs. Bank toons are tagged in the roster.
 - Both are optional; their pages say how to get them when they're missing.
 
 ### Also

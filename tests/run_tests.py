@@ -238,7 +238,7 @@ def main():
           (summary.Alchemy.count, summary.Alchemy.top, summary.Alchemy.topName))
     check('former members are left out', summary.Mining.count == 0)
     bank = c2.vc.bankSummary()
-    check('Un-Nina Bank gold and requests', bank.gold == 1234567 and bank.open == 1 and len(bank.banks) == 2, (bank.gold, bank.open))
+    check('Un-Ninja Bank gold and requests', bank.gold == 1234567 and bank.open == 1 and len(bank.banks) == 2, (bank.gold, bank.open))
     check('bank toons are tagged', c2.vc.bankToons()[c2.vc.nameId('Member6')] is True)
     c2.g.SlashCmdList.VILLAGECOMMAND('forge')
     c2.tick(0.5)
@@ -250,7 +250,7 @@ def main():
     c2.vc.openForge()
     c2.vc.openBank('requests')
     check('opens GuildForge', c2.g.FORGE_OPENED == 1)
-    check('opens an Un-Nina Bank tab', c2.g.BANK_OPENED == 'requests')
+    check('opens an Un-Ninja Bank tab', c2.g.BANK_OPENED == 'requests')
 
     # Not allowed to change ranks -----------------------------------------------------------------
     c3 = Client('MY_RANK=3')

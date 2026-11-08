@@ -1,6 +1,6 @@
 -- Village Command - guild overview and progression suite for Classic Era, WoW: Forever and retail.
 -- Online members, the full roster with notes and officer notes, mass promote / demote / set rank / notes,
--- fun stats, progression tracking, and one window that ties in GuildForge (professions) and Un-Nina Bank
+-- fun stats, progression tracking, and one window that ties in GuildForge (professions) and Un-Ninja Bank
 -- (guild bank). Both are optional: their pages say how to get them when they aren't installed.
 -- The release packager writes the git tag into the TOC; an unpackaged checkout still shows the placeholder.
 -- Look the addon up by the folder WoW loaded it from: the modern lookup errors on an unknown name.
@@ -56,7 +56,7 @@ local function requestRedraw() updatePending=true end
 VC.requestRedraw=requestRedraw
 
 -- Names ---------------------------------------------------------------------------------------------
--- The same rules GuildForge and Un-Nina Bank use, so a character matches across all three addons.
+-- The same rules GuildForge and Un-Ninja Bank use, so a character matches across all three addons.
 local function realm() return (GetRealmName and GetRealmName()) or 'Unknown' end
 VC.forever=(function() local iface=GetBuildInfo and select(4,GetBuildInfo()); return type(iface)=='number' and iface>=16000 and iface<17000 end)()
 local function normalizeRealm(server) return (server or ''):gsub('[^%w]',''):lower() end
@@ -1276,7 +1276,7 @@ function VC.professionSummary()
   end
   return out
 end
--- Un-Nina Bank (folder GuildBankToons): its public API for opening tabs, and its helper table for gold and
+-- Un-Ninja Bank (folder GuildBankToons): its public API for opening tabs, and its helper table for gold and
 -- requests. Every call is wrapped: a newer bank that changes a helper only hides a line here.
 function VC.bankAPI()
   local api=GuildBankToonsAPI
@@ -1302,7 +1302,7 @@ end
 function VC.openBank(tab)
   local api=VC.bankAPI()
   if api and type(api.Open)=='function' then pcall(api.Open,tab); return true end
-  log('Un-Nina Bank isn\'t loaded. Install it (CurseForge: Un-Nina Bank) to see the guild bank here.',true)
+  log('Un-Ninja Bank isn\'t loaded. Install it (CurseForge: Un-Ninja Bank) to see the guild bank here.',true)
 end
 function VC.bankSummary()
   if not VC.bankAPI() then return nil end
@@ -2035,7 +2035,7 @@ VC.tabs={
   {key='progress',label='Progression',icon='Interface\\Icons\\INV_Misc_PocketWatch_01',sub='Milestones, this week\'s growth, top climbers and the activity feed'},
   {key='stats',label='Fun Stats',icon='Interface\\Icons\\INV_Misc_Spyglass_03',sub='Classes, levels, busiest hours and the guild\'s superlatives'},
   {key='forge',label='Professions',icon='Interface\\Icons\\Trade_BlackSmithing',sub='From GuildForge: who crafts what, top skills, crafters online'},
-  {key='bank',label='Guild Bank',icon='Interface\\Icons\\INV_Misc_Bag_10_Blue',sub='From Un-Nina Bank: gold, bank toons and open requests'},
+  {key='bank',label='Guild Bank',icon='Interface\\Icons\\INV_Misc_Bag_10_Blue',sub='From Un-Ninja Bank: gold, bank toons and open requests'},
 }
 VC.pages={}
 function VC.memberTooltip(owner,m)
@@ -2057,7 +2057,7 @@ function VC.memberTooltip(owner,m)
   for _,p in ipairs(profs and profs[m.id] or {}) do
     if type(p)=='table' then GameTooltip:AddDoubleLine(p.name,(p.rank or 0)..'/'..(p.max or 0),.8,.8,.8,1,1,1) end
   end
-  if VC.bankToons()[m.id] then GameTooltip:AddLine('Guild bank toon (Un-Nina Bank)',.85,.67,.33) end
+  if VC.bankToons()[m.id] then GameTooltip:AddLine('Guild bank toon (Un-Ninja Bank)',.85,.67,.33) end
   local _,readyBy=VC.readyForPromotion()
   if readyBy[m.id] then GameTooltip:AddLine('Ready for promotion to '..(VC.rankNames()[readyBy[m.id].to] or '?'),1,.82,0) end
   if m.points then GameTooltip:AddLine(m.points..' achievement points',.7,.7,.7) end
@@ -2223,13 +2223,13 @@ VC.pages.overview=function()
   end
   local bank=VC.hasBank() and VC.bankSummary()
   if bank then
-    VC.line('|cffd8aa55Un-Nina Bank|r  '..VC.money(bank.gold)..'  ·  '..bank.open..' open request'..(bank.open==1 and '' or 's'),'Open Un-Nina Bank',
+    VC.line('|cffd8aa55Un-Ninja Bank|r  '..VC.money(bank.gold)..'  ·  '..bank.open..' open request'..(bank.open==1 and '' or 's'),'Open Un-Ninja Bank',
       {icon='Interface\\Icons\\INV_Misc_Bag_10_Blue',onClick=function() VC.openBank() end})
   elseif VC.bankAPI() then
-    VC.line('|cffd8aa55Un-Nina Bank|r  no bank toons set up for this guild yet','Open Un-Nina Bank',
+    VC.line('|cffd8aa55Un-Ninja Bank|r  no bank toons set up for this guild yet','Open Un-Ninja Bank',
       {icon='Interface\\Icons\\INV_Misc_Bag_10_Blue',onClick=function() VC.openBank('gm') end})
   else
-    VC.line('|cff909090Un-Nina Bank|r  not installed: the guild bank, requests and donations','',{icon='Interface\\Icons\\INV_Misc_Bag_10_Blue'})
+    VC.line('|cff909090Un-Ninja Bank|r  not installed: the guild bank, requests and donations','',{icon='Interface\\Icons\\INV_Misc_Bag_10_Blue'})
   end
 end
 local MILESTONES={10,25,50,75,100,150,200,250,300,400,500,750,1000}
@@ -2451,8 +2451,8 @@ VC.pages.promos=function()
 end
 VC.pages.bank=function()
   if not VC.bankAPI() then
-    VC.section('Un-Nina Bank')
-    VC.note('Install |cffd8aa55Un-Nina Bank|r to see the guild bank here: bank toons\' bags and gold, requests and donations, browsable even while the bank toons are offline.')
+    VC.section('Un-Ninja Bank')
+    VC.note('Install |cffd8aa55Un-Ninja Bank|r to see the guild bank here: bank toons\' bags and gold, requests and donations, browsable even while the bank toons are offline.')
     return
   end
   VC.buttons({
@@ -2462,7 +2462,7 @@ VC.pages.bank=function()
     {label='Goals',func=function() VC.openBank('goals') end},
   })
   if not VC.hasBank() then
-    VC.note('This guild has no bank toons yet. The guild master or an officer adds them on Un-Nina Bank\'s Guild tab.')
+    VC.note('This guild has no bank toons yet. The guild master or an officer adds them on Un-Ninja Bank\'s Guild tab.')
     VC.buttons({{label='Set up bank toons',func=function() VC.openBank('gm') end}})
     return
   end
@@ -3443,12 +3443,12 @@ function VC.makeWindow()
   gear:SetNormalTexture('Interface\\Icons\\INV_Misc_Gear_01')
   gear:SetHighlightTexture('Interface\\Buttons\\ButtonHilight-Square','ADD')
   setTip(gear,'Settings')
-  local forge=smallButton(f,'GuildForge',96,22); forge:SetPoint('TOPRIGHT',-136,-36)
+  local forge=smallButton(f,'GuildForge',96,22); forge:SetPoint('TOPRIGHT',-148,-36)
   forge:SetScript('OnClick',VC.openForge)
   setTip(forge,'GuildForge','Opens GuildForge: guild professions, recipes and craft requests.')
-  local bank=smallButton(f,'Un-Nina Bank',104,22); bank:SetPoint('LEFT',forge,'RIGHT',4,0)
+  local bank=smallButton(f,'Un-Ninja Bank',116,22); bank:SetPoint('LEFT',forge,'RIGHT',4,0)
   bank:SetScript('OnClick',function() VC.openBank() end)
-  setTip(bank,'Un-Nina Bank','Opens Un-Nina Bank: the guild bank, requests and donations.')
+  setTip(bank,'Un-Ninja Bank','Opens Un-Ninja Bank: the guild bank, requests and donations.')
   f.forgeButton,f.bankButton=forge,bank
   local header=CreateFrame('Frame',nil,f,BACKDROP_TEMPLATE)
   header:SetPoint('TOPLEFT',16,-64); header:SetPoint('TOPRIGHT',-16,-64); header:SetHeight(52); skin(header,.8)
@@ -3643,7 +3643,7 @@ SlashCmdList.VILLAGECOMMAND=function(message)
     local sy=VC.sync
     log(string.format('history sync %s: %d messages sent, %d received, %d pieces merged, %d not trusted, %d waiting; fingerprint %s%s',
       VC.syncOn() and 'on' or 'off',sy.sent,sy.received,sy.merged,sy.rejected,#sy.out,VC.digest(),sy.lastError and ('; last error: '..sy.lastError) or ''),true)
-    log(string.format('can promote=%s demote=%s public notes=%s officer notes=%s view officer notes=%s; GuildForge=%s; Un-Nina Bank=%s',
+    log(string.format('can promote=%s demote=%s public notes=%s officer notes=%s view officer notes=%s; GuildForge=%s; Un-Ninja Bank=%s',
       tostring(p.promote),tostring(p.demote),tostring(p.publicNote),tostring(p.officerNote),tostring(p.viewOfficer),tostring(VC.hasForge()),tostring(VC.bankAPI()~=nil)),true)
   elseif command=='quiet' then
     VillageCommandDB.settings.quiet=not VillageCommandDB.settings.quiet
