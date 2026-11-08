@@ -8,6 +8,8 @@ Village Command is a guild overview and progression suite. See everyone who's on
 
 Built for **WoW Forever**. Also works on **Classic Era** and **Retail**.
 
+![The Overview dashboard: class mix ring, online and level-cap gauges, the week's climbers on a podium and the race to the cap](https://raw.githubusercontent.com/kota150/Village-Command/main/docs/screenshots/overview.webp)
+
 ## A dashboard that shows how everyone's doing
 
 - **Class mix** as a beaded ring, and dot gauges for **who's online** and the **level-cap club**.
@@ -52,6 +54,8 @@ It asks first and names who's affected, sends changes one at a time so the serve
 - On WoW Forever, the **Promote helper** promotes the next few people on the list with each click, and learns how many the server takes at once. On Classic Era, **Promote all** does the whole list. Each member drops off the list as the roster shows their new rank, and the week's promotions are listed under the rule.
 - Right-click someone to skip them, or switch a rule off without losing it. Ready members say so in their tooltip, and the minimap tooltip counts them.
 
+![The Promotions tab: promotion rules with who's ready, and Turn off, Edit, Delete and Promote helper for each](https://raw.githubusercontent.com/kota150/Village-Command/main/docs/screenshots/promotions.webp)
+
 ## Progression
 
 - **Milestones:** roster size, members at the level cap, average level, and professions covered.
@@ -65,6 +69,8 @@ It asks first and names who's affected, sends changes one at a time so the serve
 - Charts of who's online by hour, and the guild by class, level and rank.
 
 History is recorded by your own client as it sees the roster, so these fill in over the days you play. It stays on your PC; turn it off or reset it in Settings.
+
+![Fun Stats: peak online, busiest hour, hot spot, rarest class, superlatives and online by hour](https://raw.githubusercontent.com/kota150/Village-Command/main/docs/screenshots/fun-stats.webp)
 
 ## Better with GuildForge and Un-Nina Bank
 

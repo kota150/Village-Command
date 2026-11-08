@@ -4,6 +4,8 @@
 
 Built for **WoW Forever**, and also works on **Classic Era** and **Retail**.
 
+![The Overview dashboard: class mix ring, online and level-cap gauges, the week's climbers on a podium and the race to the cap](docs/screenshots/overview.webp)
+
 ## Features
 
 ### Overview: a dashboard
@@ -47,6 +49,8 @@ Set rules like **Genin -> Chunin: level 20+, 14+ days in the guild, online in th
 
 Days in the guild count from when Village Command first saw each member, on your PC or (with shared history) a guildmate's.
 
+![The Promotions tab: promotion rules with who's ready, and Turn off, Edit, Delete and Promote helper for each](docs/screenshots/promotions.webp)
+
 ### Progression
 Milestones (roster size, members at the level cap, average level, professions covered), this week's levels gained, joins, leaves and promotions, **top climbers** over 7 or 30 days, and an activity feed of joins, leaves, level milestones and rank changes.
 
@@ -54,6 +58,8 @@ Milestones (roster size, members at the level cap, average level, professions co
 Peak online, busiest hour, today's hot spot, the rarest class, and superlatives: **Ding champion**, **Night owl**, **Early bird**, **Always around**, **Fresh blood**, **Wanderer**, **Alt army** (from "Alt of ..." notes), **Blank slates** and **Achievement hunter** (Retail). Plus online-by-hour, class, level and rank charts.
 
 History is recorded by your client as it sees the roster, so Progression and Fun Stats fill in over the days you play. It stays on your PC (nothing is sent to guildmates); turn it off or reset it in Settings.
+
+![Fun Stats: peak online, busiest hour, hot spot, rarest class, superlatives and online by hour](docs/screenshots/fun-stats.webp)
 
 ### With GuildForge and Un-Nina Bank
 Both are optional. When they're installed:
