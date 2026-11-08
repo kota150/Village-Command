@@ -1,0 +1,20 @@
+# macOS
+.DS_Store
+._*
+
+# Windows
+Thumbs.db
+Desktop.ini
+
+# Editors
+.vscode/
+.idea/
+*.swp
+
+# Release builds
+*.zip
+.release/
+
+# Test runner environment
+.venv/
+__pycache__/

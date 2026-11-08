@@ -1,0 +1,14 @@
+# Build settings for the BigWigs packager (used by the release workflow).
+package-as: VillageCommand
+
+manual-changelog:
+  filename: CHANGELOG.md
+  markup-type: markdown
+
+# Repo-only files that don't belong in the addon download
+ignore:
+  - tests
+  - README.md
+  - CURSEFORGE.md
+  - .github
+  - .gitattributes

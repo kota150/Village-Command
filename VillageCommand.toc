@@ -1,0 +1,12 @@
+## Interface: 16001, 11509, 120107, 120105
+## Title: |cffe7c483Village Command|r
+## Notes: Guild overview and progression: online members, roster notes and officer notes, mass promote and demote, fun stats, and GuildForge and Un-Nina Bank in one window
+## Author: Kota150
+## Version: @project-version@
+## X-Curse-Project-ID: 1792191
+## SavedVariables: VillageCommandDB
+## OptionalDeps: GuildForge, GuildBankToons
+## IconTexture: Interface\Icons\INV_Misc_Map_01
+## AddonCompartmentFunc: VillageCommand_OnCompartmentClick
+
+VillageCommand.lua
