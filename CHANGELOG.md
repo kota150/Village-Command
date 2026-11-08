@@ -2,6 +2,16 @@
 
 All notable changes to Village Command are listed here.
 
+## [1.1.1] - 2026-11-08
+
+### Added
+- `/vc blocked` lists every action the game blocked and blamed on Village Command this session: the function it named, how often, whether you were in combat, and which page was open. The first time the game blocks something Village Command didn't try itself, it says so once in chat.
+
+### Fixed
+- **No more "Interface actions failed" in combat.** Village Command now sits still while you're in combat: no roster requests or reads, redraws, history messages or samples. It catches up as soon as combat ends.
+- Level 20/40/50 congratulations show in Village Command's own frame instead of Blizzard's raid warning frame, so the game's own boss and raid warnings aren't blocked and blamed on Village Command.
+- Un-Ninja Bank is spelled correctly in the AddOns list and on the buttons.
+
 ## [1.1.0] - 2026-11-08
 
 ### Added

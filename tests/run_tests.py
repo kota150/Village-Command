@@ -439,6 +439,14 @@ def main():
     c11.fire('ADDON_ACTION_FORBIDDEN', 'SomeOtherAddon', 'CastSpellByName()')
     check('ignores other addons being blocked', c11.vc.blockLevel('promote') is None)
     check('Classic Era is not view-only', c11.vc.gameLocked() is False)
+    c11.run('VC_NS.lastCall=nil; wipe(PRINTED)')
+    c11.fire('ADDON_ACTION_BLOCKED', 'VillageCommand', 'UNKNOWN()')
+    c11.fire('ADDON_ACTION_BLOCKED', 'VillageCommand', 'UNKNOWN()')
+    log11 = c11.vc.blockLog['blocked UNKNOWN()']
+    check('stray blocks are counted', log11 is not None and log11.n == 2)
+    check('and said once', sum('blamed Village Command' in x for x in c11.g.PRINTED.values()) == 1)
+    c11.g.SlashCmdList.VILLAGECOMMAND('blocked')
+    check('/vc blocked lists them', any('UNKNOWN(): 2 times' in x for x in c11.g.PRINTED.values()))
 
     # Promotion checklist ---------------------------------------------------------------------------
     cp = Client()
@@ -537,6 +545,8 @@ def main():
 
     # Celebrations ---------------------------------------------------------------------------------
     cc = Client()  # Member17 is already level 60 when the roster first loads
+    # Record what VC.shout shows (and still run it), so the checks below read the messages.
+    cc.run('local shout=VC_NS.shout; VC_NS.shout=function(t) RAID_NOTICES[#RAID_NOTICES+1]=t; shout(t) end')
     check('celebrations: nothing is replayed at login', cc.vc.byId[cc.vc.nameId('Member17')].level == 60
           and len(cc.g.RAID_NOTICES) == 0 and not cc.g.VillageCommandCelebration)
     def ding(index, level):
@@ -828,6 +838,21 @@ def main():
         c.g.SlashCmdList.VILLAGECOMMAND(cmd)
     c.tick(0.5)
     check('slash commands run', True)
+
+    # Combat: Village Command sits still, then catches up -------------------------------------------
+    cb = Client()
+    cb.run('wipe(CALLS); IN_COMBAT=true')
+    cb.run('VC_NS.readSoon(true)')
+    cb.run('GUILD_ROSTER_CALLS=0; local real=C_GuildInfo.GuildRoster; C_GuildInfo.GuildRoster=function() GUILD_ROSTER_CALLS=GUILD_ROSTER_CALLS+1; real() end')
+    cb.tick(130)
+    check('combat: no roster requests while fighting', cb.g.GUILD_ROSTER_CALLS == 0, cb.g.GUILD_ROSTER_CALLS)
+    check('combat: remembers to catch up', cb.vc.pausedForCombat is True)
+    cb.run('IN_COMBAT=false')
+    cb.fire('PLAYER_REGEN_ENABLED')
+    cb.tick(61)
+    check('combat: catches up afterwards', cb.vc.pausedForCombat is None and cb.g.GUILD_ROSTER_CALLS >= 1, cb.g.GUILD_ROSTER_CALLS)
+    cc.vc.shout('hello')
+    check('celebrations: shown in our own frame, not the raid warning frame', cc.g.VillageCommandShout.IsShown(cc.g.VillageCommandShout))
 
     print()
     if failures:

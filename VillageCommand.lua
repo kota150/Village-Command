@@ -518,6 +518,29 @@ function VC.onBlocked(event,fn)
   later(1,VC.requestRoster); VC.readSoon(true)
   requestRedraw()
 end
+-- Every block the game blames on Village Command, whatever caused it, with the function the game names, how
+-- often, and whether it was in combat: /vc blocked lists them so a stray one can be tracked down.
+VC.blockLog={}
+function VC.noteBlocked(event,fn)
+  local key=(event=='ADDON_ACTION_FORBIDDEN' and 'forbidden ' or 'blocked ')..tostring(fn or '?')
+  local e=VC.blockLog[key] or {n=0}
+  VC.blockLog[key]=e
+  e.n=e.n+1; e.at=now(); e.combat=(InCombatLockdown and InCombatLockdown()) and true or false
+  e.page=window and window:IsShown() and VillageCommandDB and VillageCommandDB.ui and VillageCommandDB.ui.tab or nil
+  if e.n==1 and VC.ready and not VC.lastCall then
+    log('The game blocked '..tostring(fn or 'an action')..(e.combat and ' in combat' or '')..' and blamed Village Command. /vc blocked lists these; please send what it says.',true)
+  end
+end
+function VC.printBlocked()
+  local keys={}
+  for k in pairs(VC.blockLog) do keys[#keys+1]=k end
+  table.sort(keys,function(a,b) return VC.blockLog[a].n>VC.blockLog[b].n end)
+  if #keys==0 then log('The game hasn\'t blocked anything from Village Command since you logged in.',true); return end
+  for _,k in ipairs(keys) do
+    local e=VC.blockLog[k]
+    log(string.format('%s: %d time%s, last %ds ago%s%s',k,e.n,e.n==1 and '' or 's',now()-(e.at or now()),e.combat and ', in combat' or '',e.page and (', on '..tostring(e.page)) or ''),true)
+  end
+end
 -- The change that was blocked counts as failed, and nothing else in the queue is tried.
 function VC.stopForBlock()
   local q=VC.queue
@@ -736,13 +759,41 @@ end
 function VC.celebrate(m,level,big)
   log(VC.colorName(m)..' reached level '..level..'!'..(big and ' The whole village salutes you!' or ' Congratz!'),true)
   if big then VC.bigCelebration(m,level); return end
-  local text=VC.colorName(m)..' |cffffd100reached level '..level..'! Congratz!|r'
-  local shown=false
-  if RaidNotice_AddMessage and RaidWarningFrame then
-    shown=pcall(RaidNotice_AddMessage,RaidWarningFrame,text,(ChatTypeInfo and ChatTypeInfo.RAID_WARNING) or {r=1,g=.82,b=0})
-  end
-  if not shown and UIErrorsFrame then UIErrorsFrame:AddMessage(text,1,.82,0) end
+  VC.shout(VC.colorName(m)..' |cffffd100reached level '..level..'! Congratz!|r')
   playSound('RAID_WARNING',8959)
+end
+-- Raid-warning style text in a frame of our own. Writing into Blizzard's RaidWarningFrame taints it, and
+-- then the game blocks its own boss and raid warnings in combat and blames Village Command.
+local SHOUT_TIME=6
+function VC.shout(text)
+  local f=VC.shoutFrame
+  if not f then
+    f=CreateFrame('Frame','VillageCommandShout',UIParent)
+    VC.shoutFrame=f
+    f:SetSize(800,90); f:SetPoint('TOP',0,-180); f:SetFrameStrata('HIGH')
+    f:EnableMouse(false)
+    f.lines={}
+    for i=1,3 do
+      local t=f:CreateFontString(nil,'OVERLAY','GameFontNormalHuge'); t:SetPoint('TOP',0,-(i-1)*30)
+      t:SetShadowOffset(2,-2); f.lines[i]={text=t,age=SHOUT_TIME}
+    end
+    f:SetScript('OnUpdate',function(self,elapsed)
+      local any=false
+      for _,l in ipairs(self.lines) do
+        l.age=l.age+elapsed
+        if l.age<SHOUT_TIME then any=true; l.text:SetAlpha(math.min(1,(SHOUT_TIME-l.age)/1.5)) else l.text:SetText('') end
+      end
+      if not any then self:Hide() end
+    end)
+    f:Hide()
+  end
+  -- Newest on top; older ones move down.
+  for i=#f.lines,2,-1 do
+    local a,b=f.lines[i],f.lines[i-1]
+    a.text:SetText(b.text:GetText() or ''); a.age=b.age
+  end
+  f.lines[1].text:SetText(text); f.lines[1].age=0
+  f:Show()
 end
 -- The big one: a banner across the top of the screen with fireworks, for a few seconds. Click to dismiss.
 VC.partyQueue={}
@@ -3629,6 +3680,7 @@ SlashCmdList.VILLAGECOMMAND=function(message)
     if VillageCommandDB.blocked then VillageCommandDB.blocked[VC.flavor]=nil end
     log('Forgot the actions the game blocked; Village Command will try them again (the game says so if they\'re still blocked).',true)
     requestRedraw()
+  elseif command=='blocked' then VC.printBlocked()
   elseif command=='status' then
     local p=VC.perms()
     log(string.format('v%s; guild=%s; members=%d (game reports %s); online=%d; roster complete=%s; your rank=%s',VERSION,tostring(VC.guildName()),#VC.roster,
@@ -3649,7 +3701,7 @@ SlashCmdList.VILLAGECOMMAND=function(message)
     VillageCommandDB.settings.quiet=not VillageCommandDB.settings.quiet
     log('Quiet mode '..(VillageCommandDB.settings.quiet and 'on' or 'off')..'.',true)
   else
-    log('/vc opens the window. Pages: /vc roster, progress, stats, forge, bank. Also: online lists who\'s on; settings; minimap toggles the button; cancel stops a mass change; sync compares history with guildmates now; status shows what your rank can do and the sync counters; unblock retries actions the game blocked before; quiet toggles chat messages.',true)
+    log('/vc opens the window. Pages: /vc roster, progress, stats, forge, bank. Also: online lists who\'s on; settings; minimap toggles the button; cancel stops a mass change; sync compares history with guildmates now; status shows what your rank can do and the sync counters; unblock retries actions the game blocked before; blocked lists what the game blocked this session; quiet toggles chat messages.',true)
   end
 end
 
@@ -3693,7 +3745,10 @@ frame:SetScript('OnEvent',function(_,event,...)
   end
   if event=='ADDON_ACTION_FORBIDDEN' or event=='ADDON_ACTION_BLOCKED' then
     local who,fn=...
-    if who==addonName and VC.ready then VC.onBlocked(event,fn) end
+    if who==addonName then
+      VC.noteBlocked(event,fn)
+      if VC.ready then VC.onBlocked(event,fn) end
+    end
     return
   end
   if event=='PLAYER_LOGIN' then
@@ -3713,6 +3768,7 @@ frame:SetScript('OnEvent',function(_,event,...)
     VC.readSoon()
   else
     if event=='PLAYER_REGEN_ENABLED' then
+      if VC.pausedForCombat then VC.pausedForCombat=nil; VC.readSoon(true) end
       if VC.helperCloseAfterCombat then VC.helperCloseAfterCombat=nil; VC.closePromoteHelper() else VC.helperRefresh() end
     end
     requestRedraw()
@@ -3721,6 +3777,10 @@ end)
 frame:SetScript('OnUpdate',function(_,elapsed)
   if not VC.ready then return end
   VC.tickJobs(elapsed)
+  -- In combat Village Command sits still: no roster requests or reads, no redraws, no sync messages, no
+  -- samples. Forever (Midnight) blocks some of these in combat and blames the addon; it all catches up
+  -- the moment combat ends.
+  if InCombatLockdown and InCombatLockdown() then VC.pausedForCombat=true; return end
   VC.syncDrain(elapsed)
   -- Roster updates come in bursts; read it at most every second and a half.
   sinceRead=sinceRead+elapsed
