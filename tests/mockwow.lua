@@ -19,6 +19,7 @@ local function newObj(kind,name,parent)
       local f=self.__kind=='EditBox' and self.__scripts.OnTextChanged
       if f then f(self,false) end
     end end
+    if k=='SetPropagateKeyboardInput' then return function(self,v) self.__propagate=v end end
     if k=='GetText' then return function(self) return self.__text or '' end end
     if k=='Show' then return function(self) self.__shown=true; local f=self.__scripts.OnShow; if f then f(self) end end end
     if k=='Hide' then return function(self) self.__shown=false; local f=self.__scripts.OnHide; if f then f(self) end end end
@@ -108,13 +109,17 @@ function PlaySound(id) SOUNDS[#SOUNDS+1]=id end
 function GetCoinTextureString(c) return math.floor(c/10000)..'g' end
 RAID_CLASS_COLORS={WARRIOR={r=.78,g=.61,b=.43},MAGE={r=.41,g=.8,b=.94},PRIEST={r=1,g=1,b=1},ROGUE={r=1,g=.96,b=.41},HUNTER={r=.67,g=.83,b=.45}}
 
--- Popups: a test can say no with DECLINE_POPUPS; otherwise every confirmation is accepted at once.
+-- Confirmations (Village Command's own box): a test can say no with DECLINE_POPUPS; otherwise every one is
+-- accepted at once by clicking its Yes button. Each question is recorded in POPUPS.
 POPUPS={}
-StaticPopupDialogs={}
-function StaticPopup_Show(which,text,_,data)
-  POPUPS[#POPUPS+1]={which=which,text=text}
-  if DECLINE_POPUPS then return end
-  StaticPopupDialogs[which].OnAccept({},data)
+function VC_TEST_answerPopup(vc)
+  local ask=vc.ask
+  vc.ask=function(text,run)
+    POPUPS[#POPUPS+1]={text=text}
+    ask(text,run)
+    local d=vc.askFrame
+    if DECLINE_POPUPS then d.no.__scripts.OnClick(d.no) else d.yes.__scripts.OnClick(d.yes) end
+  end
 end
 PRINTED={}
 function print(s) PRINTED[#PRINTED+1]=tostring(s) end

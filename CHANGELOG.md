@@ -2,6 +2,14 @@
 
 All notable changes to Village Command are listed here.
 
+## [1.1.2] - 2026-11-09
+
+### Fixed
+- **Logging out and the game menu (Esc) no longer say an action was blocked.** Village Command no longer adds its windows to the game's list of windows that Escape closes, and no longer uses Blizzard's shared popups for its questions. The game walks both when you open the menu or log out, and an addon's entries there make it block its own buttons. Escape still closes Village Command's windows, newest first, and its questions use a box of its own.
+
+### Changed
+- Village Command sits still in **instances** (dungeons, raids, battlegrounds) as well as in combat: no roster requests, history messages, samples or celebrations. It catches up when you leave. The window still opens and shows what it last saw.
+
 ## [1.1.1] - 2026-11-08
 
 ### Added

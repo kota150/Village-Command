@@ -163,6 +163,7 @@ end
 VC.roster, VC.byId, VC.selected = {}, {}, {}
 VC.rosterHasOffline=false
 function VC.requestRoster()
+  if VC.paused and VC.paused() then return end
   if C_GuildInfo and C_GuildInfo.GuildRoster then C_GuildInfo.GuildRoster()
   elseif GuildRoster then GuildRoster() end
 end
@@ -590,25 +591,13 @@ function VC.noteJobs(members,template,mode,officer)
   end
   return jobs
 end
-StaticPopupDialogs=StaticPopupDialogs or {}
-StaticPopupDialogs.VILLAGECOMMAND_CONFIRM={
-  text='%s', button1=YES or 'Yes', button2=NO or 'No',
-  OnAccept=function(self,data) if type(data)=='function' then data() end end,
-  timeout=0, whileDead=true, hideOnEscape=true,
-}
-StaticPopupDialogs.VILLAGECOMMAND_RESET={
-  text='Reset Village Command\'s statistics for this guild?\n\nLevel history, the activity feed and online records start over. Notes and ranks in the game are not touched.',
-  button1=YES or 'Yes', button2=NO or 'No',
-  OnAccept=function() VC.resetStats() end,
-  timeout=0, whileDead=true, hideOnEscape=true,
-}
 -- Asks first (unless confirmations are off), naming the first few people the change touches.
 function VC.confirm(question,members,run)
   if not settings().confirm then run(); return end
   local names={}
   for i=1,math.min(#members,6) do names[i]=members[i].short end
   local who=table.concat(names,', ')..(#members>6 and (' and '..(#members-6)..' more') or '')
-  if StaticPopup_Show then StaticPopup_Show('VILLAGECOMMAND_CONFIRM',question..'\n\n'..who,nil,run) else run() end
+  VC.ask(question..'\n\n'..who,run)
 end
 function VC.massRank(dir,target,targetName)
   local members=VC.selectedMembers()
@@ -1498,6 +1487,75 @@ local function smallButton(parent,label,width,height)
   if b.SetMotionScriptsWhileDisabled then b:SetMotionScriptsWhileDisabled(true) end
   return b
 end
+-- Escape closes our windows, newest dialog first. Not through UISpecialFrames: the game menu and logging
+-- out walk that list, and an addon's entries there taint them, so the game blocks its own Log Out and
+-- menu buttons and blames the addon. Instead one small frame listens for Escape while one of ours is open,
+-- and lets every other key (and Escape, once ours are closed or in combat) carry on to the game.
+VC.escFrames={}
+function VC.escCatcher()
+  local c=VC.escFrame
+  if c then return c end
+  c=CreateFrame('Frame','VillageCommandEscape',UIParent)
+  VC.escFrame=c
+  c:SetFrameStrata('FULLSCREEN_DIALOG'); c:SetSize(1,1); c:SetPoint('TOPLEFT')
+  c:EnableKeyboard(true)
+  if c.SetPropagateKeyboardInput then c:SetPropagateKeyboardInput(true) end
+  c:SetScript('OnKeyDown',function(self,key)
+    -- The game won't let addons change key passing in combat; there Escape just goes on to the game.
+    if InCombatLockdown and InCombatLockdown() then return end
+    local top
+    if key=='ESCAPE' then
+      for _,e in ipairs(VC.escFrames) do
+        if e.frame:IsShown() and (not top or e.order<top.order) then top=e end
+      end
+    end
+    if self.SetPropagateKeyboardInput then self:SetPropagateKeyboardInput(not top) end
+    if top then top.frame:Hide() end
+  end)
+  c:Hide()
+  return c
+end
+function VC.escUpdate()
+  local any=false
+  for _,e in ipairs(VC.escFrames) do if e.frame:IsShown() then any=true; break end end
+  local c=VC.escCatcher()
+  if any then c:Show() return end
+  c:Hide()
+  if c.SetPropagateKeyboardInput and not (InCombatLockdown and InCombatLockdown()) then c:SetPropagateKeyboardInput(true) end
+end
+-- order: lower closes first (menus, then the confirmation, then dialogs, then the main window).
+function VC.closeOnEscape(frame,order)
+  VC.escFrames[#VC.escFrames+1]={frame=frame,order=order}
+  frame:HookScript('OnShow',VC.escUpdate)
+  frame:HookScript('OnHide',VC.escUpdate)
+end
+-- Yes/No question in a box of our own: Blizzard's shared popups are also used for logging out, and an
+-- addon's popup taints them.
+function VC.ask(text,onYes)
+  local d=VC.askFrame
+  if not d then
+    d=CreateFrame('Frame','VillageCommandConfirm',UIParent,BACKDROP_TEMPLATE)
+    VC.askFrame=d
+    d:SetSize(360,140); d:SetPoint('CENTER',0,140); d:SetFrameStrata('FULLSCREEN_DIALOG'); d:SetToplevel(true)
+    d:EnableMouse(true); d:SetClampedToScreen(true)
+    if d.SetBackdrop then
+      d:SetBackdrop({bgFile='Interface\\DialogFrame\\UI-DialogBox-Background',edgeFile='Interface\\DialogFrame\\UI-DialogBox-Border',tile=true,tileSize=32,edgeSize=32,insets={left=11,right=12,top=12,bottom=11}})
+    end
+    d.text=d:CreateFontString(nil,'OVERLAY','GameFontHighlight')
+    d.text:SetPoint('TOP',0,-22); d.text:SetWidth(310); d.text:SetJustifyH('CENTER')
+    d.yes=smallButton(d,YES or 'Yes',110,22); d.yes:SetPoint('BOTTOMRIGHT',d,'BOTTOM',-6,18)
+    d.no=smallButton(d,NO or 'No',110,22); d.no:SetPoint('BOTTOMLEFT',d,'BOTTOM',6,18)
+    d.yes:SetScript('OnClick',function() local run=d.run; d.run=nil; d:Hide(); if run then run() end end)
+    d.no:SetScript('OnClick',function() d.run=nil; d:Hide() end)
+    VC.closeOnEscape(d,2)
+    d:Hide()
+  end
+  d.run=onYes
+  d.text:SetText(text)
+  local h=d.text.GetStringHeight and d.text:GetStringHeight() or 0
+  d:SetHeight(math.max(120,(tonumber(h) or 0)+80))
+  d:Show()
+end
 local function tooltip(owner,title,...)
   GameTooltip:SetOwner(owner,'ANCHOR_RIGHT')
   GameTooltip:AddLine(title,1,.82,0)
@@ -1539,7 +1597,7 @@ function VC.showMenu(anchor,items)
     m=CreateFrame('Frame','VillageCommandMenu',UIParent,BACKDROP_TEMPLATE)
     skin(m,.97); m:SetFrameStrata('FULLSCREEN_DIALOG'); m:EnableMouse(true); m:SetClampedToScreen(true)
     m.buttons={}
-    tinsert(UISpecialFrames,'VillageCommandMenu')
+    VC.closeOnEscape(m,1)
     VC.menu=m
   end
   if m:IsShown() and m.anchor==anchor then m:Hide(); return end
@@ -2383,7 +2441,7 @@ VC.pages.stats=function()
   for i=0,VC.lowestRank() do
     if names[i] or s.ranks[i] then VC.bar(names[i] or ('Rank '..i),s.ranks[i] or 0,math.max(1,s.total),tostring(s.ranks[i] or 0),{.85,.68,.3}) end
   end
-  VC.buttons({{label='Reset statistics',func=function() StaticPopup_Show('VILLAGECOMMAND_RESET') end,tip='Start the history, records and activity feed over for this guild.'}})
+  VC.buttons({{label='Reset statistics',func=function() VC.ask('Reset Village Command\'s statistics for this guild?\n\nLevel history, the activity feed and online records start over. Notes and ranks in the game are not touched.',VC.resetStats) end,tip='Start the history, records and activity feed over for this guild.'}})
 end
 VC.pages.forge=function()
   local summary=VC.professionSummary()
@@ -2454,7 +2512,7 @@ VC.pages.promos=function()
       VC.buttons({
         {label='Turn on',func=function() r.off=nil; requestRedraw() end},
         {label='Edit rule',func=function() VC.openRuleDialog(i) end},
-        {label='Delete rule',func=function() StaticPopup_Show('VILLAGECOMMAND_CONFIRM','Delete the rule '..heading..'?',nil,function() VC.deleteRule(i) end) end},
+        {label='Delete rule',func=function() VC.ask('Delete the rule '..heading..'?',function() VC.deleteRule(i) end) end},
       })
     else
     VC.section(heading,#ready..' ready'..(#skipped>0 and ('  ·  '..#skipped..' skipped') or '')..'  ·  right-click someone to skip')
@@ -2463,7 +2521,7 @@ VC.pages.promos=function()
       {label='Turn off',func=function() r.off=true; requestRedraw() end,tip='Keep the rule but stop listing and counting anyone for it.'},
       {label='Edit rule',func=function() VC.openRuleDialog(i) end},
       {label='Delete rule',func=function()
-        if StaticPopup_Show then StaticPopup_Show('VILLAGECOMMAND_CONFIRM','Delete the rule '..(names[r.from] or '?')..' -> '..(names[r.to] or '?')..'?',nil,function() VC.deleteRule(i) end) else VC.deleteRule(i) end
+        VC.ask('Delete the rule '..(names[r.from] or '?')..' -> '..(names[r.to] or '?')..'?',function() VC.deleteRule(i) end)
       end},
     }
     if locked then
@@ -3189,7 +3247,7 @@ function VC.openRuleDialog(index)
     if d.SetBackdrop then
       d:SetBackdrop({bgFile='Interface\\DialogFrame\\UI-DialogBox-Background',edgeFile='Interface\\DialogFrame\\UI-DialogBox-Border',tile=true,tileSize=32,edgeSize=32,insets={left=11,right=12,top=12,bottom=11}})
     end
-    tinsert(UISpecialFrames,'VillageCommandRuleDialog')
+    VC.closeOnEscape(d,3)
     d.title=fontString(d,'GameFontNormal','CENTER'); d.title:SetPoint('TOP',0,-18)
     local y=-46
     local function label(text)
@@ -3275,7 +3333,7 @@ function VC.openNoteDialog(officer)
     if d.SetBackdrop then
       d:SetBackdrop({bgFile='Interface\\DialogFrame\\UI-DialogBox-Background',edgeFile='Interface\\DialogFrame\\UI-DialogBox-Border',tile=true,tileSize=32,edgeSize=32,insets={left=11,right=12,top=12,bottom=11}})
     end
-    tinsert(UISpecialFrames,'VillageCommandNoteDialog')
+    VC.closeOnEscape(d,3)
     d.title=fontString(d,'GameFontNormal','CENTER'); d.title:SetPoint('TOP',0,-18)
     d.box=editBox(d,300,'e.g. Raider {date}')
     d.box:SetPoint('TOP',0,-46); d.box:SetMaxLetters(NOTE_MAX)
@@ -3422,7 +3480,7 @@ function VC.makeSettingsPanel(f,inset)
     function(dir) VillageCommandDB.settings.trustRank=math.max(0,math.min(VC.lowestRank(),(tonumber(settings().trustRank) or 1)+dir)) end,
     function(v) return VC.rankNames()[v] or ('Rank '..v) end)
   local reset=smallButton(panel,'Reset statistics',140,22); reset:SetPoint('TOPLEFT',22,y-6)
-  reset:SetScript('OnClick',function() StaticPopup_Show('VILLAGECOMMAND_RESET') end)
+  reset:SetScript('OnClick',function() VC.ask('Reset Village Command\'s statistics for this guild?\n\nLevel history, the activity feed and online records start over. Notes and ranks in the game are not touched.',VC.resetStats) end)
   -- Celebrations, in the right-hand column.
   colX,y=440,-50
   local head=panel:CreateFontString(nil,'OVERLAY','GameFontNormal'); head:SetPoint('TOPLEFT',colX+4,-30); head:SetText('Celebrations')
@@ -3479,7 +3537,7 @@ function VC.makeWindow()
   end
   local tint=f:CreateTexture(nil,'BACKGROUND',nil,1)
   tint:SetPoint('TOPLEFT',11,-12); tint:SetPoint('BOTTOMRIGHT',-12,11); tint:SetColorTexture(.16,.11,.06,.55)
-  tinsert(UISpecialFrames,'VillageCommandWindow')
+  VC.closeOnEscape(f,9)
   local banner=f:CreateTexture(nil,'ARTWORK')
   banner:SetTexture('Interface\\DialogFrame\\UI-DialogBox-Header'); banner:SetSize(340,64); banner:SetPoint('TOP',0,12)
   local title=f:CreateFontString(nil,'OVERLAY','GameFontNormal')
@@ -3522,7 +3580,7 @@ function VC.makeWindow()
   hint:SetText('/vc help for commands')
   f.tabButtons={}
   for i,tab in ipairs(VC.tabs) do makeTab(i,tab) end
-  f:SetScript('OnHide',function() VC.hideMenu(); if VC.noteDialog then VC.noteDialog:Hide() end end)
+  f:HookScript('OnHide',function() VC.hideMenu(); if VC.noteDialog then VC.noteDialog:Hide() end end)
   f:Hide()
 end
 function VC.open(tab)
@@ -3713,6 +3771,11 @@ end
 -- Reads the roster the game already has. Don't wait for GUILD_ROSTER_UPDATE: the roster often arrives during
 -- the loading screen, before this addon is ready, and the server ignores roster requests made within about
 -- 10 seconds of another addon's, so no new event may come for a while.
+function VC.paused()
+  if InCombatLockdown and InCombatLockdown() then return true end
+  local inInstance=IsInInstance and IsInInstance()
+  return inInstance and true or false
+end
 function VC.readSoon(now)
   rosterDirty=true
   if now then sinceRead=math.max(sinceRead,1.5) end
@@ -3737,7 +3800,7 @@ end
 frame:SetScript('OnEvent',function(_,event,...)
   if event=='CHAT_MSG_ADDON' then
     local prefix,msg,channel,sender=...
-    if prefix==SYNC_PREFIX and channel=='GUILD' and VC.ready and type(msg)=='string' and not isSecret(msg) and not isSecret(sender) then
+    if prefix==SYNC_PREFIX and channel=='GUILD' and VC.ready and not VC.paused() and type(msg)=='string' and not isSecret(msg) and not isSecret(sender) then
       local ok,err=pcall(VC.onSyncMessage,msg,sender)
       if not ok then VC.sync.lastError=tostring(err) end
     end
@@ -3768,7 +3831,6 @@ frame:SetScript('OnEvent',function(_,event,...)
     VC.readSoon()
   else
     if event=='PLAYER_REGEN_ENABLED' then
-      if VC.pausedForCombat then VC.pausedForCombat=nil; VC.readSoon(true) end
       if VC.helperCloseAfterCombat then VC.helperCloseAfterCombat=nil; VC.closePromoteHelper() else VC.helperRefresh() end
     end
     requestRedraw()
@@ -3777,10 +3839,11 @@ end)
 frame:SetScript('OnUpdate',function(_,elapsed)
   if not VC.ready then return end
   VC.tickJobs(elapsed)
-  -- In combat Village Command sits still: no roster requests or reads, no redraws, no sync messages, no
-  -- samples. Forever (Midnight) blocks some of these in combat and blames the addon; it all catches up
-  -- the moment combat ends.
-  if InCombatLockdown and InCombatLockdown() then VC.pausedForCombat=true; return end
+  -- In combat or an instance (dungeon, raid, battleground) Village Command sits still: no roster requests
+  -- or reads, no redraws, no sync messages, no samples, no celebrations. Forever (Midnight) blocks some of
+  -- these there and blames the addon; it all catches up the moment you're out.
+  if VC.paused() then VC.pausedForCombat=true; return end
+  if VC.pausedForCombat then VC.pausedForCombat=nil; VC.readSoon(true); requestRedraw() end
   VC.syncDrain(elapsed)
   -- Roster updates come in bursts; read it at most every second and a half.
   sinceRead=sinceRead+elapsed

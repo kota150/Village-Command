@@ -36,6 +36,7 @@ class Client:
         loader(ADDON)
         self.g = self.lua.globals()
         self.vc = self.g.VC_NS
+        self.g.VC_TEST_answerPopup(self.vc)
         self.fire('PLAYER_LOGIN')
         if roster_event:
             self.roster_update()
@@ -851,6 +852,32 @@ def main():
     cb.fire('PLAYER_REGEN_ENABLED')
     cb.tick(61)
     check('combat: catches up afterwards', cb.vc.pausedForCombat is None and cb.g.GUILD_ROSTER_CALLS >= 1, cb.g.GUILD_ROSTER_CALLS)
+    cb.run('IN_INSTANCE=true; GUILD_ROSTER_CALLS=0')
+    cb.tick(130)
+    cb.vc.requestRoster()
+    check('instances: Village Command sits still in a dungeon too', cb.g.GUILD_ROSTER_CALLS == 0 and cb.vc.pausedForCombat is True)
+    cb.run('IN_INSTANCE=false')
+    cb.tick(61)
+    check('instances: catches up after leaving', cb.vc.pausedForCombat is None and cb.g.GUILD_ROSTER_CALLS >= 1)
+
+    # Escape closes our windows without touching UISpecialFrames or Blizzard's popups ---------------
+    ce = Client()
+    check('escape: nothing added to UISpecialFrames', len(ce.g.UISpecialFrames) == 0)
+    ce.vc.open('roster')
+    esc = ce.g.VillageCommandEscape
+    check('escape: listens while the window is open', esc.IsShown(esc))
+    ce.run('DECLINE_POPUPS=true')
+    ce.run('VC_NS.ask("Sure?",function() end); VC_NS.askFrame:Show()')
+    esc.GetScript(esc, 'OnKeyDown')(esc, 'ESCAPE')
+    win = ce.g.VillageCommandWindow
+    check('escape: closes the confirmation first', not ce.vc.askFrame.IsShown(ce.vc.askFrame) and win.IsShown(win))
+    esc.GetScript(esc, 'OnKeyDown')(esc, 'A')
+    check('escape: other keys pass through', win.IsShown(win) and esc.__propagate is True)
+    esc.GetScript(esc, 'OnKeyDown')(esc, 'ESCAPE')
+    check('escape: then the window', not win.IsShown(win) and not esc.IsShown(esc))
+    ce.run('IN_COMBAT=true'); ce.vc.open('roster')
+    esc.GetScript(esc, 'OnKeyDown')(esc, 'ESCAPE')
+    check('escape: in combat it goes on to the game', win.IsShown(win) and esc.__propagate is True)
     cc.vc.shout('hello')
     check('celebrations: shown in our own frame, not the raid warning frame', cc.g.VillageCommandShout.IsShown(cc.g.VillageCommandShout))
 
