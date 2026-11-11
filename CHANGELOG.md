@@ -2,6 +2,11 @@
 
 All notable changes to Village Command are listed here.
 
+## [1.1.3] - 2026-11-11
+
+### Fixed
+- **No more false demotions in the activity feed.** When the guild's ranks are reorganised (a rank added, removed or moved), everyone below it gets a new rank number without changing rank. Village Command read that as a demotion for each of them. It now compares rank names too, and treats five or more rank changes in one roster read as a reorganisation. False entries already recorded are removed at login, and history sharing won't bring them back from guildmates still on an older version.
+
 ## [1.1.2] - 2026-11-09
 
 ### Fixed

@@ -860,6 +860,53 @@ def main():
     cb.tick(61)
     check('instances: catches up after leaving', cb.vc.pausedForCombat is None and cb.g.GUILD_ROSTER_CALLS >= 1)
 
+    # Ranks renumbered: nobody was promoted or demoted -----------------------------------------------
+    cr = Client()
+    cr.tick(2)
+    cr.run('''
+      local g=VC_NS.guildData()
+      wipe(g.events)
+      -- A new rank goes in above Veteran: everyone from Veteran down gets a number one higher.
+      table.insert(RANKS,3,'Chunin')
+      for _,m in ipairs(ROSTER) do if m.rank>=2 then m.rank=m.rank+1 end end
+    ''')
+    cr.roster_update(); cr.tick(2)
+    kinds = [e.k for e in cr.vc.guildData().events.values()]
+    check('renumbered ranks are not demotions', 'demote' not in kinds and 'promote' not in kinds, kinds)
+    # One real promotion still shows.
+    cr.run('for _,m in ipairs(ROSTER) do if m.name:find("^Member12") then m.rank=m.rank-1 end end')
+    cr.roster_update(); cr.tick(2)
+    kinds = [e.k for e in cr.vc.guildData().events.values()]
+    check('a real promotion is still recorded', kinds.count('promote') == 1, kinds)
+    # Old false entries from before this fix are cleaned out, and sharing can't bring them back.
+    cr.run('''
+      local g=VC_NS.guildData()
+      wipe(g.events)
+      for i=4,12 do VC_NS.event(g,"demote","Member"..i,"demoted to Initiate",VC_NS.nameId("Member"..i),5) end
+      VC_NS.event(g,"promote","Member20","promoted to Officer",VC_NS.nameId("Member20"),1)
+      g.events[#g.events].t=g.events[#g.events].t-3600
+    ''')
+    removed = cr.vc.cleanRankBursts()
+    kinds = [e.k for e in cr.vc.guildData().events.values()]
+    check('old burst of demotions is cleaned out', removed == 9 and kinds == ['promote'], (removed, kinds))
+    cr.run('''
+      local g=VC_NS.guildData()
+      MERGED_BACK=0
+      for key,t in pairs(g.dropped) do
+        local kind,id,v=key:match("^(%a+):([^:]+):(.*)$")
+        local name=VC_NS.byId[id] and VC_NS.byId[id].name or id
+        for c,k in pairs(VC_NS.CODE_KIND) do
+          if k==kind and VC_NS.mergeEvent(VC_NS.to36(t).."~"..c.."~"..name.."~"..v,true) then MERGED_BACK=MERGED_BACK+1 end
+        end
+      end
+    ''')
+    cr.run('''
+      local g=VC_NS.guildData(); local n=0
+      for _ in pairs(g.dropped) do n=n+1 end
+      DROPPED=n
+    ''')
+    check('shared copies of them are turned away', cr.g.DROPPED == 9 and cr.g.MERGED_BACK == 0 and len(cr.vc.guildData().events) == 1, cr.g.MERGED_BACK)
+
     # Escape closes our windows without touching UISpecialFrames or Blizzard's popups ---------------
     ce = Client()
     check('escape: nothing added to UISpecialFrames', len(ce.g.UISpecialFrames) == 0)

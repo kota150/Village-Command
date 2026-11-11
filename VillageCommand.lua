@@ -638,12 +638,44 @@ function VC.event(g,kind,name,detail,id,v)
   g.events[#g.events+1]={t=now(),k=kind,n=name,d=detail,id=id,v=v}
   while #g.events>400 do table.remove(g.events,1) end
 end
+-- This many rank changes in one roster read (or with the same timestamp) is a reorganisation, not people.
+VC.RANK_BURST=5
+-- Takes out bursts of promotions and demotions all stamped at the same moment: the ranks being renumbered,
+-- recorded as changes before Village Command knew better (or sent by a guildmate's older copy). They're
+-- remembered so history sharing doesn't bring them back.
+function VC.cleanRankBursts(g)
+  g=g or VC.guildData()
+  if not g or not g.events then return 0 end
+  local byTime={}
+  for _,e in ipairs(g.events) do
+    if (e.k=='promote' or e.k=='demote') and e.t then
+      local at=math.floor(e.t)
+      byTime[at]=(byTime[at] or 0)+1
+    end
+  end
+  local removed=0
+  g.dropped=g.dropped or {}
+  for i=#g.events,1,-1 do
+    local e=g.events[i]
+    if (e.k=='promote' or e.k=='demote') and e.t and byTime[math.floor(e.t)]>=VC.RANK_BURST then
+      local key=VC.eventKey(e)
+      if key then g.dropped[key]=e.t end
+      table.remove(g.events,i); removed=removed+1
+    end
+  end
+  -- Forget tombstones once they're older than anything history sharing still sends.
+  for key,t in pairs(g.dropped) do if t<now()-((VC.SYNC_DAYS or 30)+2)*DAY then g.dropped[key]=nil end end
+  return removed
+end
 function VC.track()
   local g=VC.guildData()
   if not g or #VC.roster==0 or not settings().history then return end
   local t,maxLevel=now(),VC.maxLevel()
   local logJoins=g.baseline~=nil
   local names=VC.rankNames()
+  -- Rank changes are collected first: when the guild's ranks are renumbered (a rank added, removed or
+  -- moved), everyone below it gets a new rank number at once without anyone being promoted or demoted.
+  local moves={}
   for _,m in ipairs(VC.roster) do
     local rec=g.members[m.id]
     if not rec then
@@ -662,12 +694,27 @@ function VC.track()
         rec.levels[#rec.levels+1]={t,m.level}
         while #rec.levels>40 do table.remove(rec.levels,1) end
       end
-      if rec.rank and m.rankIndex~=rec.rank then
-        VC.event(g,m.rankIndex<rec.rank and 'promote' or 'demote',m.short,(m.rankIndex<rec.rank and 'promoted to ' or 'demoted to ')..(names[m.rankIndex] or m.rank),m.id,m.rankIndex)
+      local nowName=names[m.rankIndex] or m.rank
+      -- Same rank name under a new number is the ranks being renumbered, not a promotion.
+      local sameName=rec.rankName and nowName and nowName~='' and rec.rankName==nowName
+      if rec.rank and m.rankIndex~=rec.rank and not sameName then
+        moves[#moves+1]={m=m,up=m.rankIndex<rec.rank,name=nowName}
       end
     end
     rec.level,rec.rank,rec.name,rec.class=m.level,m.rankIndex,m.short,m.classFile
+    local rn=names[m.rankIndex] or m.rank
+    if rn and rn~='' then rec.rankName=rn end
     if m.online then rec.seen=t elseif m.away then rec.seen=math.max(rec.seen or 0,t-m.away) end
+  end
+  -- Many members changing rank in one roster read is the ranks being reorganised; a real promotion or
+  -- demotion goes through one at a time.
+  if #moves>=VC.RANK_BURST then
+    log('Guild ranks changed for '..#moves..' members at once; that looks like the ranks being reorganised, so it isn\'t in the activity feed.')
+  else
+    for _,mv in ipairs(moves) do
+      local m=mv.m
+      VC.event(g,mv.up and 'promote' or 'demote',m.short,(mv.up and 'promoted to ' or 'demoted to ')..(mv.name or '?'),m.id,m.rankIndex)
+    end
   end
   if VC.rosterComplete() then
     if logJoins then
@@ -867,6 +914,7 @@ end
 local SYNC_PREFIX='VCMD'
 local SYNC_VERSION='1'
 local SYNC_DAYS=30
+VC.SYNC_DAYS=SYNC_DAYS
 VC.sync={out={},allowance=8,sent=0,received=0,merged=0,rejected=0,lastDump=0,lastBegin=0,dumpsTo={},pending={}}
 local B36='0123456789abcdefghijklmnopqrstuvwxyz'
 function VC.to36(n)
@@ -937,6 +985,7 @@ function VC.digest()
 end
 local KIND_CODE={join='j',leave='l',ding='d',promote='p',demote='x'}
 local CODE_KIND={j='join',l='leave',d='ding',p='promote',x='demote'}
+VC.CODE_KIND=CODE_KIND
 -- The level or rank an event is about (older events only kept the words, so read it back from those).
 function VC.eventValue(e)
   if e.v then return e.v end
@@ -1055,6 +1104,8 @@ function VC.mergeEvent(piece,trusted)
   elseif not trusted then VC.sync.rejected=VC.sync.rejected+1; return false
   elseif kind=='leave' and m then return false end
   local key=kind..':'..tostring(id)..':'..tostring(v or '')
+  local gone=g.dropped and g.dropped[key]
+  if gone and math.abs(gone-t)<2*DAY then return false end
   for _,e in ipairs(g.events) do
     if VC.eventKey(e)==key and math.abs(e.t-t)<2*DAY then return false end
   end
@@ -1063,6 +1114,7 @@ function VC.mergeEvent(piece,trusted)
   while at>1 and g.events[at-1].t>t do at=at-1 end
   table.insert(g.events,at,e)
   while #g.events>400 do table.remove(g.events,1) end
+  if kind=='promote' or kind=='demote' then VC.cleanRankBursts(g) end
   return true
 end
 function VC.onSyncMessage(msg,sender)
@@ -3794,6 +3846,12 @@ function VC.loadRoster()
   if ok then ok,err=pcall(VC.checkDings) end
   if not ok then VC.reportError(err); return end
   if not VC.sampledOnce and #VC.roster>0 then VC.sampledOnce=true; VC.sample() end
+  -- Once per login, clear out rank changes that were really the ranks being renumbered.
+  if not VC.cleanedOnce and #VC.roster>0 and VC.guildData() then
+    VC.cleanedOnce=true
+    local n=VC.cleanRankBursts()
+    if n>0 then log('Took '..n..' promotions and demotions out of the activity feed: they all happened at the same moment, so they were the guild\'s ranks being reorganised, not people changing rank.',true) end
+  end
   if VC.helperState.pending then VC.helperCheck() end
   VC.helperRefresh()
 end
