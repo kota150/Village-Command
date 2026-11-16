@@ -129,6 +129,8 @@ function VC.initDB()
   if s.celebrateLevels==nil then s.celebrateLevels='20, 40, 50' end
   if s.celebrateCap==nil then s.celebrateCap=true end
   if s.celebrateSound==nil then s.celebrateSound=true end
+  -- A note when someone who's been away a month or more comes back online.
+  if s.welcomeBack==nil then s.welcomeBack=true end
   -- History sync with guildmates running Village Command, and whose word is taken on its own.
   if s.share==nil then s.share=true end
   if s.trustRank==nil then s.trustRank=1 end
@@ -640,6 +642,27 @@ function VC.event(g,kind,name,detail,id,v)
   if isCapDing(g.events[#g.events]) then VC.addFame(g,id or VC.nameId(name),name,now()) end
   while #g.events>400 do table.remove(g.events,1) end
 end
+-- Welcome back: someone seen offline for a month or more is now online. The long absence has to have been
+-- seen recently (in the last few days), so a member who came back while you weren't playing, and is
+-- simply online again now, isn't welcomed back weeks late.
+VC.WELCOME_DAYS=30
+local WELCOME_FRESH=3*DAY
+function VC.checkWelcome(g,m,rec,t)
+  if not m.online then
+    if m.away and m.away>=VC.WELCOME_DAYS*DAY then rec.longAway={t,m.away} else rec.longAway=nil end
+    return
+  end
+  local la=rec.longAway
+  if not la then return end
+  rec.longAway=nil
+  if t-la[1]>WELCOME_FRESH then return end
+  local days=math.floor((la[2]+(t-la[1]))/DAY)
+  VC.event(g,'back',m.short,'is back after '..days..' days',m.id,days)
+  if settings().welcomeBack then
+    local link=(m.name and not isSecret(m.name)) and ('|Hplayer:'..m.name..'|h['..m.short..']|h') or m.short
+    log('|cff40ff40Welcome back!|r '..link..' is online again after '..days..' days away. Say hi!',true)
+  end
+end
 -- This many rank changes in one roster read (or with the same timestamp) is a reorganisation, not people.
 VC.RANK_BURST=5
 -- Takes out bursts of promotions and demotions all stamped at the same moment: the ranks being renumbered,
@@ -704,6 +727,7 @@ function VC.track()
       end
     end
     rec.level,rec.rank,rec.name,rec.class=m.level,m.rankIndex,m.short,m.classFile
+    VC.checkWelcome(g,m,rec,t)
     local rn=names[m.rankIndex] or m.rank
     if rn and rn~='' then rec.rankName=rn end
     if m.online then rec.seen=t elseif m.away then rec.seen=math.max(rec.seen or 0,t-m.away) end
@@ -1206,6 +1230,28 @@ function VC.hallOfFame()
   for id,f in pairs(g.fame or {}) do list[#list+1]={name=f.n or id,t=f.t,id=id} end
   table.sort(list,function(a,b) if a.t~=b.t then return a.t<b.t end return a.name<b.name end)
   return list
+end
+-- Hall of fame places by member id ({pos=, t=}), worked out once per redraw for the roster and tooltips.
+VC.CROWN='|TInterface\\GroupFrame\\UI-Group-LeaderIcon:0|t'
+function VC.famePlaces()
+  local cache=VC.fameCache
+  if cache and cache.at==VC.drawCount then return cache.map end
+  local map={}
+  for i,e in ipairs(VC.hallOfFame()) do map[e.id]={pos=i,t=e.t} end
+  VC.fameCache={at=VC.drawCount,map=map}
+  return map
+end
+local function ordinal(n)
+  local tens=n%100
+  if tens>=11 and tens<=13 then return n..'th' end
+  return n..(({'st','nd','rd'})[n%10] or 'th')
+end
+function VC.fameLine(id)
+  local f=VC.famePlaces()[id]
+  if not f then return nil end
+  local when=date and date('%b %d, %Y',f.t) or ''
+  if f.pos==1 then return VC.CROWN..' First in the guild to reach level '..VC.maxLevel()..' ('..when..')' end
+  return ordinal(f.pos)..' in the guild to reach level '..VC.maxLevel()..' ('..when..')'
 end
 -- Off the Hall of fame when they leave; remembered so an old feed entry doesn't put them back. If they
 -- rejoin and hit the cap again, that's a new entry.
@@ -2242,6 +2288,8 @@ function VC.memberTooltip(owner,m)
     if week>0 then GameTooltip:AddLine('+'..week..' level'..(week==1 and '' or 's')..' this week',1,.82,0) end
     if g.baseline and rec.first>g.baseline then GameTooltip:AddLine('Joined '..VC.agoText(now()-rec.first),.7,.7,.7) end
   end
+  local fame=VC.fameLine(m.id)
+  if fame then GameTooltip:AddLine(fame,1,.82,0) end
   local profs=VC.forgeProfessions()
   for _,p in ipairs(profs and profs[m.id] or {}) do
     if type(p)=='table' then GameTooltip:AddDoubleLine(p.name,(p.rank or 0)..'/'..(p.max or 0),.8,.8,.8,1,1,1) end
@@ -2262,7 +2310,7 @@ end
 local function eventIcon(kind)
   return ({join='Interface\\Icons\\Spell_Holy_PrayerOfFortitude',leave='Interface\\Icons\\Ability_Rogue_Sprint',
     ding='Interface\\Icons\\Spell_Holy_SurgeOfLight',promote='Interface\\Icons\\Spell_Magic_GreaterBlessingofKings',
-    demote='Interface\\Icons\\Spell_Shadow_CurseOfTounges'})[kind] or 'Interface\\Icons\\INV_Misc_Note_01'
+    demote='Interface\\Icons\\Spell_Shadow_CurseOfTounges',back='Interface\\Icons\\INV_Misc_Bell_01'})[kind] or 'Interface\\Icons\\INV_Misc_Note_01'
 end
 function VC.feed(limit)
   local g=VC.guildData()
@@ -2360,7 +2408,7 @@ VC.pages.overview=function()
   local fameRows={}
   for i=1,math.min(#fame,8) do
     local e=fame[i]
-    fameRows[i]={label='|cffffd100'..e.name..'|r',value=1,max=1,color={.85,.65,.15},text=date and date('%b %d',e.t) or '',m=VC.byId[VC.nameId(e.name) or '']}
+    fameRows[i]={label=(i==1 and (VC.CROWN..' ') or '')..'|cffffd100'..e.name..'|r',value=1,max=1,color={.85,.65,.15},text=date and date('%b %d',e.t) or '',m=VC.byId[VC.nameId(e.name) or '']}
   end
   VC.panels(190,{
     {title='Weekly rhythm',sub=best and ('busiest: '..best) or '',weight=1.7,draw=function(f,w,h)
@@ -2827,7 +2875,8 @@ function VC.drawRows()
       b.check:SetShown(not locked)
       b.check:SetScript('OnClick',function(self) VC.toggleSelect(m.id,self:GetChecked() and true or false); VC.anchorId=m.id; VC.updateActionBar() end)
       setDot(b.dot,m.online)
-      b.cells.name:SetText(VC.colorName(m)..(m.mobile and ' |cff909090(m)|r' or ''))
+      local place=VC.famePlaces()[m.id]
+      b.cells.name:SetText(VC.colorName(m)..(place and place.pos==1 and (' '..VC.CROWN) or '')..(m.mobile and ' |cff909090(m)|r' or ''))
       b.cells.level:SetText(m.level)
       b.cells.rank:SetText(m.rank)
       b.cells.zone:SetText(m.online and m.zone or ('|cff909090'..VC.agoText(m.away)..'|r'))
@@ -3459,6 +3508,7 @@ end
 -- Window --------------------------------------------------------------------------------------------
 function VC.update()
   updatePending=false; sinceUpdate=0
+  VC.drawCount=(VC.drawCount or 0)+1
   VC.refreshMinimap()
   if not (window and window:IsShown()) then return end
   local key=VillageCommandDB.ui.tab
@@ -3578,6 +3628,8 @@ function VC.makeSettingsPanel(f,inset)
     function() return settings().celebrateCap end, function(v) VillageCommandDB.settings.celebrateCap=v end)
   check('Play a sound','The raid warning sound, and the level-up fanfare for the big one.',
     function() return settings().celebrateSound end, function(v) VillageCommandDB.settings.celebrateSound=v end)
+  check('Welcome back long-lost guildmates','A line in chat (click the name to whisper) when someone who\'s been away '..VC.WELCOME_DAYS..'+ days comes back online. They\'re in the activity feed either way.',
+    function() return settings().welcomeBack end, function(v) VillageCommandDB.settings.welcomeBack=v end)
   local preview=smallButton(panel,'Preview',90,22); preview:SetPoint('TOPLEFT',colX+6,y-4)
   preview:SetScript('OnClick',function() VC.previewCelebration(false) end)
   local previewBig=smallButton(panel,'Preview the big one',150,22); previewBig:SetPoint('LEFT',preview,'RIGHT',6,0)

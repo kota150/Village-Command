@@ -4,6 +4,10 @@ All notable changes to Village Command are listed here.
 
 ## [1.1.4] - 2026-11-16
 
+### Added
+- **Hall of fame badges.** Whoever reached the level cap first wears a crown next to their name in the roster and the Hall of fame, and every member's tooltip says where they placed: "First in the guild to reach level 60", "3rd in the guild to reach level 60" and so on, with the date.
+- **Welcome back.** When someone who's been away 30 days or more comes back online, it's in the activity feed and a line in chat says so. Click their name to whisper them. Turn the chat line off under Settings > Celebrations.
+
 ### Changed
 - **The Hall of fame lists who reached the level cap first at the top**, instead of the most recent. It's kept as its own list, so first place stays first however long ago it was, and someone only comes off it by leaving the guild. Members already on it keep their dates.
 

@@ -931,6 +931,38 @@ def main():
     order = [e.name for e in hf.vc.hallOfFame().values()]
     check('hall of fame: leaving the guild takes them off', order[:2] == ['Member6', 'Member7'] and 'Member5' not in order, order)
 
+    check('hall of fame: crown and place in the tooltip', hf.vc.fameLine(hf.vc.nameId('Member6')).find('First in the guild') >= 0
+          and 'nd in the guild' in hf.vc.fameLine(hf.vc.nameId('Member7')) and hf.vc.fameLine(hf.vc.nameId('Member8')) is None)
+
+    # Welcome back --------------------------------------------------------------------------------
+    wb = Client()
+    wb.tick(2)
+    wb.run('''
+      wipe(PRINTED)
+      for _,m in ipairs(ROSTER) do if m.name:find("^Member4%-") or m.name=="Member4" then WB=m end end
+      WB.online=false; WB.away=45*86400
+      VC_TEST_fire("GUILD_ROSTER_UPDATE"); VC_TEST_tick(2)
+      CLOCK=CLOCK+600
+      WB.online=true; WB.away=0
+      VC_TEST_fire("GUILD_ROSTER_UPDATE"); VC_TEST_tick(2)
+    ''')
+    backs = [e for e in wb.vc.guildData().events.values() if e.k == 'back']
+    check('welcome back: in the feed', len(backs) == 1 and 'back after 45 days' in backs[0].d, [e.d for e in backs])
+    check('welcome back: and in chat', any('Welcome back' in x and 'Member4' in x for x in wb.g.PRINTED.values()))
+    wb.run('''
+      VC_TEST_fire("GUILD_ROSTER_UPDATE"); VC_TEST_tick(2)
+      for _,m in ipairs(ROSTER) do if m.name:find("^Member7%-") or m.name=="Member7" then WB=m end end
+      WB.online=false; WB.away=40*86400
+      VC_TEST_fire("GUILD_ROSTER_UPDATE"); VC_TEST_tick(2)
+      CLOCK=CLOCK+5*86400
+      WB.online=true; WB.away=0
+      VC_TEST_fire("GUILD_ROSTER_UPDATE"); VC_TEST_tick(2)
+    ''')
+    backs = [e for e in wb.vc.guildData().events.values() if e.k == 'back']
+    check('welcome back: only once, and not from a stale absence', len(backs) == 1, [e.d for e in backs])
+    wb.vc.selectTab('progress'); wb.tick(0.3)
+    check('welcome back: the feed draws it', wb.vc.panelErrors is None)
+
     # Escape closes our windows without touching UISpecialFrames or Blizzard's popups ---------------
     ce = Client()
     check('escape: nothing added to UISpecialFrames', len(ce.g.UISpecialFrames) == 0)
