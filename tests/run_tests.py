@@ -907,6 +907,30 @@ def main():
     ''')
     check('shared copies of them are turned away', cr.g.DROPPED == 9 and cr.g.MERGED_BACK == 0 and len(cr.vc.guildData().events) == 1, cr.g.MERGED_BACK)
 
+    # Hall of fame: first to the cap stays first ----------------------------------------------------
+    hf = Client()
+    hf.tick(2)
+    hf.run('''
+      local g=VC_NS.guildData()
+      wipe(g.events); g.fame=nil
+      for i,name in ipairs({"Member5","Member6","Member7"}) do
+        for _,m in ipairs(ROSTER) do if m.name:find("^"..name.."%-") or m.name==name then m.level=60 end end
+        VC_TEST_fire("GUILD_ROSTER_UPDATE"); VC_TEST_tick(2)
+        CLOCK=CLOCK+3600
+      end
+    ''')
+    order = [e.name for e in hf.vc.hallOfFame().values()]
+    check('hall of fame: earliest to the cap first', order[:3] == ['Member5', 'Member6', 'Member7'], order)
+    hf.run('local g=VC_NS.guildData(); for i=1,450 do VC_NS.event(g,"join","X"..i,"joined") end')
+    order = [e.name for e in hf.vc.hallOfFame().values()]
+    check('hall of fame: first place stays after the feed moves on', order[:3] == ['Member5', 'Member6', 'Member7'], order)
+    hf.run('''
+      for i=#ROSTER,1,-1 do if ROSTER[i].name:find("^Member5") then table.remove(ROSTER,i) end end
+      VC_TEST_fire("GUILD_ROSTER_UPDATE"); VC_TEST_tick(2)
+    ''')
+    order = [e.name for e in hf.vc.hallOfFame().values()]
+    check('hall of fame: leaving the guild takes them off', order[:2] == ['Member6', 'Member7'] and 'Member5' not in order, order)
+
     # Escape closes our windows without touching UISpecialFrames or Blizzard's popups ---------------
     ce = Client()
     check('escape: nothing added to UISpecialFrames', len(ce.g.UISpecialFrames) == 0)

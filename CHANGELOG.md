@@ -2,6 +2,11 @@
 
 All notable changes to Village Command are listed here.
 
+## [1.1.4] - 2026-11-16
+
+### Changed
+- **The Hall of fame lists who reached the level cap first at the top**, instead of the most recent. It's kept as its own list, so first place stays first however long ago it was, and someone only comes off it by leaving the guild. Members already on it keep their dates.
+
 ## [1.1.3] - 2026-11-11
 
 ### Fixed

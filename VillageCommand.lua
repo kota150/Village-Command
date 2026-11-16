@@ -634,8 +634,10 @@ end
 -- Village Command watches the roster and remembers levels, ranks, joins and leaves, so progression and
 -- stats grow the longer it runs. Nothing is shared over the network: it's what this client has seen.
 -- id and v (the level or rank index) let an event be shared with guildmates and rebuilt in their words.
+local function isCapDing(e) return e.k=='ding' and e.d and e.d:find('level cap',1,true) end
 function VC.event(g,kind,name,detail,id,v)
   g.events[#g.events+1]={t=now(),k=kind,n=name,d=detail,id=id,v=v}
+  if isCapDing(g.events[#g.events]) then VC.addFame(g,id or VC.nameId(name),name,now()) end
   while #g.events>400 do table.remove(g.events,1) end
 end
 -- This many rank changes in one roster read (or with the same timestamp) is a reorganisation, not people.
@@ -723,7 +725,7 @@ function VC.track()
       -- A half-loaded roster isn't half the guild leaving.
       if #VC.roster>=known*.5 then
         for id,rec in pairs(g.members) do
-          if not VC.byId[id] then VC.event(g,'leave',rec.name or id,'left the guild',id); g.members[id]=nil end
+          if not VC.byId[id] then VC.event(g,'leave',rec.name or id,'left the guild',id); g.members[id]=nil; VC.leaveFame(g,id,t) end
         end
       end
     end
@@ -1115,6 +1117,7 @@ function VC.mergeEvent(piece,trusted)
   table.insert(g.events,at,e)
   while #g.events>400 do table.remove(g.events,1) end
   if kind=='promote' or kind=='demote' then VC.cleanRankBursts(g) end
+  if kind=='leave' and id then VC.leaveFame(g,id,t) end
   return true
 end
 function VC.onSyncMessage(msg,sender)
@@ -1177,15 +1180,40 @@ function VC.levelsByDay(days)
   end
   return out
 end
--- Members who hit the level cap while Village Command was watching, newest first: {name=, t=}.
+-- The Hall of fame: everyone who hit the level cap, in the order they got there. It's kept apart from the
+-- activity feed (which only holds the latest 400 entries) so first place stays first place; someone only
+-- comes off it by leaving the guild. g.fame[id]={n=name,t=when}.
+function VC.addFame(g,id,name,t)
+  if not (g and id) then return end
+  g.fame=g.fame or {}
+  local f=g.fame[id]
+  if not f then g.fame[id]={n=name,t=t}
+  elseif t<f.t then f.t=t end
+  if name then g.fame[id].n=name end
+end
+-- Earliest first: {name=, t=, id=}.
 function VC.hallOfFame()
   local g=VC.guildData()
-  local list={}
-  for i=#(g and g.events or {}),1,-1 do
-    local e=g.events[i]
-    if e.k=='ding' and e.d and e.d:find('level cap',1,true) then list[#list+1]={name=e.n,t=e.t} end
+  if not g then return {} end
+  -- Fill in from the feed: entries recorded before the Hall of fame had its own list, or shared by guildmates.
+  for _,e in ipairs(g.events or {}) do
+    if isCapDing(e) then
+      local id=e.id or VC.nameId(e.n)
+      if id and not (g.fameGone and g.fameGone[id] and g.fameGone[id]>=e.t) then VC.addFame(g,id,e.n,e.t) end
+    end
   end
+  local list={}
+  for id,f in pairs(g.fame or {}) do list[#list+1]={name=f.n or id,t=f.t,id=id} end
+  table.sort(list,function(a,b) if a.t~=b.t then return a.t<b.t end return a.name<b.name end)
   return list
+end
+-- Off the Hall of fame when they leave; remembered so an old feed entry doesn't put them back. If they
+-- rejoin and hit the cap again, that's a new entry.
+function VC.leaveFame(g,id,t)
+  if not (g and g.fame and g.fame[id]) then return end
+  g.fame[id]=nil
+  g.fameGone=g.fameGone or {}
+  g.fameGone[id]=t
 end
 -- Levels gained in the last `days` days, from what this client has seen.
 function VC.gained(rec,days,t)
