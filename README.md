@@ -1,6 +1,6 @@
 # Village Command
 
-**Run your guild from one window.** Village Command is a guild overview and progression suite: see everyone who's online, manage the roster with notes and officer notes, promote and demote one member or fifty at once (Classic Era only), and watch the guild grow with progression tracking and fun stats. It also brings your other guild addons, **[GuildForge](https://www.curseforge.com/wow/addons/guild-forge-guild-profession-tracker)** and **[Un-Ninja Bank](https://www.curseforge.com/wow/addons/un-ninja-bank-guild-bank-sharing)**, into the same window.
+**Run your guild from one window.** Village Command is a guild overview and progression suite: see everyone who's online, plan events with signups and attendance, post bounties, manage the roster with notes and officer notes, promote and demote one member or fifty at once (Classic Era only), and watch the guild grow with progression tracking and fun stats. It also brings your other guild addons, **[GuildForge](https://www.curseforge.com/wow/addons/guild-forge-guild-profession-tracker)** and **[Un-Ninja Bank](https://www.curseforge.com/wow/addons/un-ninja-bank-guild-bank-sharing)**, into the same window.
 
 Built for **WoW Forever**, and also works on **Classic Era** and **Retail**.
 
@@ -41,6 +41,29 @@ Village Command asks first and names who's affected. Changes go out one at a tim
 
 **Not on WoW Forever.** None of the above works on Forever: Blizzard blocks addons from promoting, demoting and changing public or officer notes there (tested in game, even for one member from a click), so the roster drops the tick boxes and mass actions and points you to the guild window (J). The only rank change Village Command can make on Forever is through the **Promote helper** (below), which has the game run `/gpromote` from your clicks. Anywhere else, if the game blocks one of Village Command's actions, it stops, explains once in chat, and greys that action out with the reason, remembered per version of the game. `/vc unblock` lets it try again after a game patch.
 
+### Events: signups and attendance
+Plan a raid, dungeon run, PvP night or get-together, and guildmates running Village Command sign up from the **Events** tab.
+
+- **New event:** a name, type, day and time, how many players you need, and a note. Everyone sees it in their own time zone.
+- **Sign up** as **Tank**, **Healer** or **Damage**, or say **Maybe** or **Can't come**. The event shows who's coming in each role, the classes coming (so a leader sees what's missing), and who said maybe or can't.
+- **Reminders:** a line in chat 15 minutes before an event you signed up for or lead, and when it starts.
+- **Attendance:** the leader (or an officer) clicks **Take attendance** while in a group or raid, and everyone from the guild in it is recorded. If the leader is in a group 15 minutes after the start, Village Command takes it on its own, even inside the raid. **Regulars** lists who came to the most events in the last 60 days, and member tooltips say "At 4 of the guild's last 6 events".
+- **Announce in guild** posts one line about the event in guild chat, for guildmates without the addon.
+- The next few events show on the **Overview** under *Coming up* (with your answer), and the next one in the minimap tooltip.
+
+### Bounty board
+Post what you need on the **Bounties** tab and guildmates take it on.
+
+- **Post a bounty:** type what you're after ("help with Jintha'Alor elites") or shift-click an item, say how many, the reward in gold and silver, and how long it stays up (3 to 30 days).
+- **I'm on it** tells the guild you're hunting it. For item bounties your bag count is shared as you collect ("12/20"), so the poster can see how close you are. **Mark sent** once you've mailed or traded it.
+- The poster clicks **Done...** and picks who earned it. It goes in the activity feed, and **Bounty hunters** ranks who completed the most in the last 90 days, with the gold they earned.
+- **Addons can't hold gold.** The reward is a promise on the board: the poster pays it in the game, by mail or trade.
+
+### Sharing events and bounties
+Events and bounties go out to guildmates running Village Command the moment they're posted or changed. Anyone who was offline catches up at login the same way shared history does: a short hello, and only if something differs, a copy from one guildmate (about 25 messages for a busy board). Events from the last two weeks and bounties that are open or closed in the last two weeks are shared; older ones are kept on your PC for 90 days for attendance and the leaderboards.
+
+**Who can change what:** only the leader or poster, or the trusted ranks (Settings > *Trust shared history from*), can edit, cancel or close an event or bounty. Signups and hunts only ever change their own person. Each person can have 6 upcoming events and 6 open bounties (the trusted ranks 25). Addon messages can't be signed, so a guildmate with a modified addon could still relay a fake change. Village Command limits that: when it sees a different copy of one of *your* events, bounties, signups or hunts, it sends yours again, so the real one wins whenever you're online.
+
 ### Shared history
 Guildmates running Village Command compare what they've seen when they log in, so **days in the guild**, level history and the activity feed cover everyone's playtime, not just yours. It's light: a short hello at login, and only when histories differ, a few dozen small messages at the game's pace (about 50 bytes per member). Joins, leaves, rank changes and earlier first-seen dates are only taken from trusted ranks (**Settings > Trust shared history from**), or, for first-seen dates, from two guildmates who agree. Online-by-hour graphs stay your own. Turn sharing off in Settings.
 
@@ -76,9 +99,9 @@ The **GuildForge** and **Un-Ninja Bank** buttons at the top of the window open t
 | Command | What it does |
 | --- | --- |
 | `/vc` | Open or close the window (also `/village`, `/villagecommand`) |
-| `/vc roster`, `promotions`, `progress`, `stats`, `forge`, `bank` | Open a page |
+| `/vc roster`, `events`, `bounties`, `promotions`, `progress`, `stats`, `forge`, `bank` | Open a page |
 | `/vc online` | List who's online in chat |
-| `/vc sync` | Compare history with guildmates now |
+| `/vc sync` | Compare history, events and bounties with guildmates now |
 | `/vc settings` | Open settings |
 | `/vc cancel` | Stop a mass change part way |
 | `/vc status` | Show what your rank is allowed to do, and anything the game blocks |

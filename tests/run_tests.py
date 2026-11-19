@@ -13,7 +13,10 @@ import sys
 import lupa.lua51 as lua51
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-ADDON = open(os.path.join(HERE, '..', 'VillageCommand.lua'), encoding='utf-8').read()
+# The addon's files in the order the TOC loads them.
+TOC = open(os.path.join(HERE, '..', 'VillageCommand.toc'), encoding='utf-8').read()
+FILES = [line.strip() for line in TOC.splitlines() if line.strip().endswith('.lua')]
+SOURCES = [(f, open(os.path.join(HERE, '..', f), encoding='utf-8').read()) for f in FILES]
 MOCK = open(os.path.join(HERE, 'mockwow.lua'), encoding='utf-8').read()
 failures = []
 
@@ -32,8 +35,9 @@ class Client:
         if setup:
             self.lua.execute(setup)
         self.lua.execute(MOCK)
-        loader = self.lua.eval('function(src) local c,e=loadstring(src,"@VillageCommand.lua"); if not c then error(e,0) end; VC_NS={}; c("VillageCommand",VC_NS) end')
-        loader(ADDON)
+        loader = self.lua.eval('function(src,name) local c,e=loadstring(src,"@"..name); if not c then error(e,0) end; VC_NS=VC_NS or {}; c("VillageCommand",VC_NS) end')
+        for name, src in SOURCES:
+            loader(src, name)
         self.g = self.lua.globals()
         self.vc = self.g.VC_NS
         self.g.VC_TEST_answerPopup(self.vc)
@@ -640,7 +644,7 @@ def main():
     before = len(net.delivered)
     B.g.SlashCmdList.VILLAGECOMMAND('sync')
     net.pump(15)
-    check('sync: once in step, a hello costs one message', len(net.delivered) - before == 1, net.delivered[before:])
+    check('sync: once in step, a hello costs one message (and one for events and bounties)', len(net.delivered) - before == 2, net.delivered[before:])
 
     # What B knew that A didn't goes back to A
     B.run('''
@@ -692,13 +696,13 @@ def main():
     F.run('IN_INSTANCE=true; IN_COMBAT=true; C_ChatInfo.InChatMessagingLockdown=function() return true end')
     F.g.SlashCmdList.VILLAGECOMMAND('sync')
     F.tick(5)
-    check('sync: held while the game locks addon chat', len(F.g.OUT) == 0 and len(F.vc.sync.out) == 1)
+    check('sync: held while the game locks addon chat', len(F.g.OUT) == 0 and len(F.vc.sync.out) == 2, len(F.vc.sync.out))
     F.run('IN_COMBAT=false')
     F.tick(2)
     check('sync: still held in the instance while the game reports the lockdown', len(F.g.OUT) == 0)
     F.run('IN_INSTANCE=false')
     F.tick(2)
-    check('sync: and sent once you\'re out', len(F.g.OUT) == 1)
+    check('sync: and sent once you\'re out', len(F.g.OUT) == 2, len(F.g.OUT))
     for x in (A, B):
         x.g.SlashCmdList.VILLAGECOMMAND('status')
     check('sync: /vc status reports it', any('history sync on' in s for s in A.g.PRINTED.values()))
@@ -983,6 +987,149 @@ def main():
     check('escape: in combat it goes on to the game', win.IsShown(win) and esc.__propagate is True)
     cc.vc.shout('hello')
     check('celebrations: shown in our own frame, not the raid warning frame', cc.g.VillageCommandShout.IsShown(cc.g.VillageCommandShout))
+
+    # Events and bounties ------------------------------------------------------------------------------
+    # Ash (Officer) plans a raid; Birch and Cove (Members) sign up; everyone shares over the guild channel.
+    def board_client(name, rank, others, setup=''):
+        extra = ','.join('{"%s",%d,60}' % (n, r) for n, r in others)
+        return Client('PLAYER="%s"; MY_RANK=%d; EXTRA_MEMBERS={%s}; %s' % (name, rank, extra, setup))
+    BA = board_client('Ash', 1, [('Birch', 3), ('Cove', 3)])
+    BB = board_client('Birch', 3, [('Ash', 1), ('Cove', 3)])
+    board = Guild(BA, BB)
+    board.pump(30)
+    BA.run('local d=date("*t",CLOCK+86400); d.hour,d.min,d.sec=20,0,0; '
+           'EV,WHY=VC_NS.saveEvent({title="Molten Core",kind="raid",t=time(d),size=40,note="Bring fire resist"})')
+    check('events: an officer plans one', BA.g.EV is not None, BA.g.WHY)
+    board.pump(5)
+    evid = BA.g.EV.id
+    evB = BB.vc.boardData().ev[evid]
+    check('events: guildmates online get it straight away', evB is not None and evB.title == 'Molten Core' and evB.kind == 'raid')
+    check('events: the leader is signed up', evB is not None and evB.su[BB.vc.nameId('Ash')] is not None)
+    BB.vc.signUp(evid, 'h')
+    board.pump(5)
+    s = BA.vc.signupSummary(BA.vc.boardData().ev[evid])
+    check('events: a signup reaches the leader', len(s.lists.h) == 1 and s.coming == 2, (len(s.lists.h), s.coming))
+    check('events: both sides agree', BA.vc.boardDigest() == BB.vc.boardDigest(), (BA.vc.boardDigest(), BB.vc.boardDigest()))
+    BB.run('HIJACK=VC_NS.saveEvent({id="%s",title="Hijack",t=time()+3600})' % evid)
+    check('events: only the leader or an officer can change one', BB.g.HIJACK is None and BA.vc.boardData().ev[evid].title == 'Molten Core')
+    # A fake cancel of Ash's event, claimed by a Member, is refused and Ash's own copy is sent again.
+    before = BA.vc.boardSync.rejected
+    BA.vc.onBoardMessage('V', '%s~%s~Ash~Birch~%s~raid~40~1~Molten Core~' % (evid, BA.vc.to36(BA.vc.now() + 5), BA.vc.to36(BA.g.EV.t)), BA.vc.nameId('Birch'))
+    check('events: a cancel by someone not allowed is refused', BA.vc.boardSync.rejected == before + 1 and not BA.vc.boardData().ev[evid].x)
+    # Birch's own signup: a different copy from someone else gets Birch's sent again.
+    BB.vc.onBoardMessage('S', evid + ';Birch:n:' + BB.vc.to36(BB.vc.now() + 30), BB.vc.nameId('Ash'))
+    check('events: your own signup stays yours', BB.vc.mySignup(BB.vc.boardData().ev[evid]) == 'h')
+    board.pump(10)
+    check('events: and the guild hears yours again', BA.vc.signupSummary(BA.vc.boardData().ev[evid]).lists.h[1] is not None)
+    # Pages draw with an event, and the overview shows what's coming up.
+    BB.g.SlashCmdList.VILLAGECOMMAND('events')
+    BB.tick(0.5)
+    check('events: page draws', BB.g.VillageCommandWindow.IsShown(BB.g.VillageCommandWindow))
+    BB.vc.selectTab('overview')
+    BB.tick(0.5)
+    BA.vc.openEventDialog()
+    BA.vc.openEventDialog(evid)
+    check('events: dialog opens to edit', BA.vc.eventDialog.name.GetText(BA.vc.eventDialog.name) == 'Molten Core')
+    BA.vc.eventDialog.save.GetScript(BA.vc.eventDialog.save, 'OnClick')(BA.vc.eventDialog.save)
+    check('events: saving from the dialog works', not BA.vc.eventDialog.IsShown(BA.vc.eventDialog), BA.vc.eventDialog.error.GetText(BA.vc.eventDialog.error))
+    check('events: and keeps the start time', BA.vc.boardData().ev[evid].t == BA.g.EV.t, (BA.vc.boardData().ev[evid].t, BA.g.EV.t))
+    # Reminder 15 minutes before, for those signed up.
+    BB.run('CLOCK=%d' % (BA.g.EV.t - 14 * 60))
+    BB.tick(6)
+    check('events: reminder 15 minutes before', any('Molten Core' in str(p) and 'starts' in str(p) for p in BB.g.PRINTED.values()))
+    # Attendance: the leader's group, taken on its own 15 minutes after the start.
+    BA.run('GROUP={raid1={"Ash"},raid2={"Birch"},raid3={"Cove"},raid4={"Stranger"}}; IN_RAID=true; IN_INSTANCE=true; CLOCK=%d' % (BA.g.EV.t + 16 * 60))
+    BA.tick(21)
+    ev = BA.vc.boardData().ev[evid]
+    check('events: attendance taken from the raid, even inside the instance', BA.vc.attendanceCount(ev) == 3, BA.vc.attendanceCount(ev))
+    BA.run('IN_INSTANCE=false')
+    BB.run('CLOCK=%d' % (BA.g.EV.t + 16 * 60))
+    board.pump(5)
+    check('events: attendance reaches guildmates once out', BB.vc.attendanceCount(BB.vc.boardData().ev[evid]) == 3)
+    stats = BB.vc.attendanceStats(60)[0]
+    check('events: regulars counted', len(stats) == 3 and stats[1].n == 1, len(stats))
+    BA.vc.announceEvent(ev)
+    check('events: announce posts one line in guild chat', len(BA.g.CHAT) == 1 and BA.g.CHAT[1][2] == 'GUILD')
+
+    # Bounties
+    BA.run('BOUNTY,WHY=VC_NS.saveBounty({title=select(2,GetItemInfo(12359)),qty=20,reward=50000,days=7,note="mail me"})')
+    check('bounties: posted from an item link', BA.g.BOUNTY is not None and BA.g.BOUNTY.item == 12359 and BA.g.BOUNTY.title == 'Thorium Bar', BA.g.WHY)
+    board.pump(5)
+    bid = BA.g.BOUNTY.id
+    boB = BB.vc.boardData().bo[bid]
+    check('bounties: guildmates get it', boB is not None and boB.qty == 20 and boB.reward == 50000)
+    BB.run('BAGS[12359]=5')
+    BB.vc.hunt(bid, 'on')
+    board.pump(5)
+    hunts = BA.vc.bountyHunts(BA.vc.boardData().bo[bid])
+    check('bounties: the poster sees who is hunting, with their count', len(hunts) == 1 and hunts[1].have == 5, len(hunts))
+    BB.run('BAGS[12359]=20')
+    board.pump(45)
+    check('bounties: progress follows the hunter\'s bags', BA.vc.bountyHunts(BA.vc.boardData().bo[bid])[1].have == 20)
+    check('bounties: a hunter can\'t close it', BB.vc.closeBounty(bid, True, 'Birch') is False)
+    BB.vc.hunt(bid, 'sent')
+    board.pump(5)
+    check('bounties: marked sent', BA.vc.bountyHunts(BA.vc.boardData().bo[bid])[1].st == 'sent')
+    BA.vc.closeBounty(bid, True, 'Birch')
+    board.pump(5)
+    check('bounties: done, credited to the hunter, everywhere', BB.vc.boardData().bo[bid].st == 'd' and BB.vc.boardData().bo[bid].done == 'Birch')
+    hunters = BB.vc.bountyHunters(90)
+    check('bounties: hunter leaderboard', len(hunters) == 1 and hunters[1].name == 'Birch' and hunters[1].gold == 50000)
+    check('bounties: in the activity feed', any(e.k == 'bounty' for e in BB.vc.guildData().events.values()))
+    for key in ['bounties', 'events', 'overview']:
+        try:
+            BA.run('VillageCommandDB.ui.finishedBounties=true; VillageCommandDB.ui.pastEvents=true')
+            BA.vc.selectTab(key)
+            BA.tick(0.5)
+            check('board: draws the ' + key + ' page', True)
+        except Exception as e:  # noqa: BLE001
+            check('board: draws the ' + key + ' page', False, e)
+    BA.vc.openBountyDialog()
+    d = BA.vc.bountyDialog
+    BA.run('VC_NS.bountyDialog.what.HasFocus=function() return true end')
+    BA.run('ChatEdit_InsertLink(select(2,GetItemInfo(12359)))')
+    check('bounties: shift-click puts the item in', 'item:12359' in d.what.GetText(d.what))
+    d.qty.SetText(d.qty, '10')
+    d.gold.SetText(d.gold, '2')
+    d.save.GetScript(d.save, 'OnClick')(d.save)
+    check('bounties: posted from the dialog', not d.IsShown(d) and len(BA.vc.openBounties()) == 1, d.error.GetText(d.error))
+    # Limits: one person can't flood the board.
+    BB.run('for i=1,10 do VC_NS.saveBounty({title="Thing "..i,qty=1}) end')
+    mine = [b for b in BB.vc.openBounties().values() if b.by == BB.vc.myId()]
+    check('bounties: limited per person', len(mine) == BB.vc.BOARD_LIMITS.bounties, len(mine))
+    # A guildmate logging in later catches up on everything.
+    BC = board_client('Cove', 3, [('Ash', 1), ('Birch', 3)])
+    BC.run('CLOCK=%d' % BA.g.CLOCK)
+    board.clients.append(BC)
+    board.delivered.clear()
+    board.pump(80)
+    check('board: a guildmate logging in later catches up', BC.vc.boardDigest() == BA.vc.boardDigest() == BB.vc.boardDigest(),
+          (BA.vc.boardDigest(), BB.vc.boardDigest(), BC.vc.boardDigest()))
+    check('board: catch-up got the event with its signups', BC.vc.boardData().ev[evid] is not None and BC.vc.signupSummary(BC.vc.boardData().ev[evid]).coming == 2)
+    sizes = [len(m) for _, m in board.delivered]
+    check('board: every message fits in 255 bytes', max(sizes) <= 255, max(sizes))
+    check('board: never throttled by the game', not BA.g.THROTTLED and not BB.g.THROTTLED and not BC.g.THROTTLED)
+    print('     (catch-up used %d messages, %d bytes)' % (len(board.delivered), sum(sizes)))
+    BA.g.SlashCmdList.VILLAGECOMMAND('status')
+    check('board: /vc status reports it', any('events and bounties' in str(p) for p in BA.g.PRINTED.values()))
+
+    # WoW Forever: "First Surname" names in signups, hunts and attendance.
+    WA = Client('INTERFACE=16001; PLAYER="Arc"; SURNAME="Dawnfire"; MY_RANK=1; EXTRA_MEMBERS={{"Bree Hollow",3,60}}')
+    WB = Client('INTERFACE=16001; PLAYER="Bree"; SURNAME="Hollow"; MY_RANK=3; EXTRA_MEMBERS={{"Arc Dawnfire",1,60}}')
+    fnet = Guild(WA, WB)
+    fnet.pump(30)
+    WA.run('FEV=VC_NS.saveEvent({title="Scholomance",kind="dungeon",t=CLOCK+7200,size=5})')
+    fnet.pump(5)
+    fid = WA.g.FEV.id
+    WB.vc.signUp(fid, 't')
+    fnet.pump(5)
+    fs = WA.vc.signupSummary(WA.vc.boardData().ev[fid])
+    check('forever: signups with surnames', len(fs.lists.t) == 1 and fs.lists.t[1].n == 'Bree Hollow', len(fs.lists.t))
+    WA.run('GROUP={party1={"Bree","Hollow"}}; IN_RAID=false')
+    WA.vc.takeAttendance(fid)
+    fnet.pump(5)
+    check('forever: attendance with surnames', WB.vc.attendanceCount(WB.vc.boardData().ev[fid]) == 2)
+    check('forever: in step', WA.vc.boardDigest() == WB.vc.boardDigest())
 
     print()
     if failures:

@@ -2,6 +2,7 @@
 -- Online members, the full roster with notes and officer notes, mass promote / demote / set rank / notes,
 -- fun stats, progression tracking, and one window that ties in GuildForge (professions) and Un-Ninja Bank
 -- (guild bank). Both are optional: their pages say how to get them when they aren't installed.
+-- Guild events (signups and attendance) and the bounty board live in Board.lua and BoardUI.lua.
 -- The release packager writes the git tag into the TOC; an unpackaged checkout still shows the placeholder.
 -- Look the addon up by the folder WoW loaded it from: the modern lookup errors on an unknown name.
 local addonName=...
@@ -50,6 +51,9 @@ local function clean(value)
   if value==nil or isSecret(value) then return '' end
   return tostring(value)
 end
+-- For Board.lua and BoardUI.lua (events and bounties), which load after this file.
+VC.now,VC.later,VC.clean,VC.isSecret,VC.settings=now,later,clean,isSecret,settings
+VC.DAY=DAY
 local updatePending, sinceUpdate, sinceRoster, sinceSample = false, 0, 0, 0
 local rosterDirty, sinceRead = false, 0
 local function requestRedraw() updatePending=true end
@@ -136,6 +140,9 @@ function VC.initDB()
   if s.trustRank==nil then s.trustRank=1 end
   -- Promote helper: how many /gpromote lines one click carries.
   if s.batch==nil then s.batch=5 end
+  -- Events and bounties (Board.lua): chat reminders and news.
+  if s.eventReminders==nil then s.eventReminders=true end
+  if s.boardNews==nil then s.boardNews=true end
 end
 function VC.guildName()
   if not (IsInGuild and IsInGuild()) then return nil end
@@ -1180,6 +1187,9 @@ function VC.onSyncMessage(msg,sender)
       sy.dumpsTo[senderId]={digest=mine,at=now()}
       later(1+math.random()*3,VC.sendHistory)
     end
+  elseif VC.onBoardMessage and kind then
+    -- Events and bounties (Board.lua) share the channel and its pace.
+    VC.onBoardMessage(kind,rest,senderId)
   end
 end
 
@@ -1715,6 +1725,7 @@ end
 local function setDot(texture,online)
   if online then texture:SetVertexColor(.2,1,.2) else texture:SetVertexColor(.4,.4,.4) end
 end
+VC.ui={fontString=fontString,smallButton=smallButton,editBox=editBox,setTip=setTip,tooltip=tooltip,addHighlight=addHighlight,skin=skin,enable=enable}
 
 -- A small pick-one menu, shared by every button that needs one (works the same on every client).
 function VC.showMenu(anchor,items)
@@ -1900,6 +1911,8 @@ function VC.bar(label,value,max,text,color,icon,right,onEnter)
   return place(b,21)
 end
 local stripe=0
+function VC.resetStripe() stripe=0 end
+function VC.pageWidth() return pageWidth end
 function VC.line(text,right,opts)
   opts=opts or {}
   local b=acquire('line')
@@ -1953,7 +1966,7 @@ function VC.buttons(list)
     if spec then
       b:SetText(spec.label)
       if spec.disabled then b:Disable() else b:Enable() end
-      b:SetScript('OnClick',function() if not spec.disabled then spec.func() end end)
+      b:SetScript('OnClick',function(self) if not spec.disabled then spec.func(self) end end)
       if spec.tip then setTip(b,spec.label,spec.tip) else b:SetScript('OnEnter',nil); b:SetScript('OnLeave',nil) end
     end
   end
@@ -2297,6 +2310,7 @@ function VC.memberTooltip(owner,m)
   if VC.bankToons()[m.id] then GameTooltip:AddLine('Guild bank toon (Un-Ninja Bank)',.85,.67,.33) end
   local _,readyBy=VC.readyForPromotion()
   if readyBy[m.id] then GameTooltip:AddLine('Ready for promotion to '..(VC.rankNames()[readyBy[m.id].to] or '?'),1,.82,0) end
+  if VC.boardMemberLines then VC.boardMemberLines(GameTooltip,m) end
   if m.points then GameTooltip:AddLine(m.points..' achievement points',.7,.7,.7) end
   GameTooltip:AddLine(' ')
   GameTooltip:AddLine('|cffffd100Click|r  open in the roster',.7,.7,.7)
@@ -2310,7 +2324,8 @@ end
 local function eventIcon(kind)
   return ({join='Interface\\Icons\\Spell_Holy_PrayerOfFortitude',leave='Interface\\Icons\\Ability_Rogue_Sprint',
     ding='Interface\\Icons\\Spell_Holy_SurgeOfLight',promote='Interface\\Icons\\Spell_Magic_GreaterBlessingofKings',
-    demote='Interface\\Icons\\Spell_Shadow_CurseOfTounges',back='Interface\\Icons\\INV_Misc_Bell_01'})[kind] or 'Interface\\Icons\\INV_Misc_Note_01'
+    demote='Interface\\Icons\\Spell_Shadow_CurseOfTounges',back='Interface\\Icons\\INV_Misc_Bell_01',
+    bounty='Interface\\Icons\\INV_Misc_Coin_02',raid='Interface\\Icons\\INV_Misc_Head_Dragon_01'})[kind] or 'Interface\\Icons\\INV_Misc_Note_01'
 end
 function VC.feed(limit)
   local g=VC.guildData()
@@ -2444,6 +2459,7 @@ VC.pages.overview=function()
   local perRow=math.max(1,math.floor(pageWidth/170))
   local rowsNeeded=math.min(6,math.max(1,math.ceil(#online/perRow)))
   VC.panels(32+rowsNeeded*18+10,{{title='Online now ('..#online..')',draw=function(f,w,h) VC.drawNames(f,w,h,online) end}})
+  if VC.boardOverview then VC.boardOverview() end
   VC.section('Recent activity')
   stripe=0
   VC.feed(5)
@@ -3634,6 +3650,13 @@ function VC.makeSettingsPanel(f,inset)
   preview:SetScript('OnClick',function() VC.previewCelebration(false) end)
   local previewBig=smallButton(panel,'Preview the big one',150,22); previewBig:SetPoint('LEFT',preview,'RIGHT',6,0)
   previewBig:SetScript('OnClick',function() VC.previewCelebration(true) end)
+  y=y-44
+  local boardHead=panel:CreateFontString(nil,'OVERLAY','GameFontNormal'); boardHead:SetPoint('TOPLEFT',colX+4,y); boardHead:SetText('Events and bounties')
+  y=y-20
+  check('Event reminders','A line in chat 15 minutes before an event you signed up for or lead, and when it starts.',
+    function() return settings().eventReminders end, function(v) VillageCommandDB.settings.eventReminders=v end)
+  check('Announce new events and bounties','A line in chat when a guildmate posts an event or a bounty while you\'re online.',
+    function() return settings().boardNews end, function(v) VillageCommandDB.settings.boardNews=v end)
   panel.levels=levels
   local version=fontString(panel,'GameFontDisableSmall','RIGHT'); version:SetPoint('BOTTOMRIGHT',-14,12); version:SetText('Village Command v'..VERSION)
   panel:SetScript('OnShow',function()
@@ -3712,7 +3735,11 @@ function VC.makeWindow()
   hint:SetText('/vc help for commands')
   f.tabButtons={}
   for i,tab in ipairs(VC.tabs) do makeTab(i,tab) end
-  f:HookScript('OnHide',function() VC.hideMenu(); if VC.noteDialog then VC.noteDialog:Hide() end end)
+  f:HookScript('OnHide',function()
+    VC.hideMenu(); if VC.noteDialog then VC.noteDialog:Hide() end
+    if VC.eventDialog then VC.eventDialog:Hide() end
+    if VC.bountyDialog then VC.bountyDialog:Hide() end
+  end)
   f:Hide()
 end
 function VC.open(tab)
@@ -3781,6 +3808,7 @@ local function showMinimapTooltip(self)
     if #online>15 then GameTooltip:AddLine('   and '..(#online-15)..' more',.6,.6,.6) end
     local ready=#(VC.readyForPromotion())
     if ready>0 then GameTooltip:AddLine(ready..' ready for promotion',1,.82,0) end
+    if VC.boardMinimapLines then VC.boardMinimapLines(GameTooltip) end
     if VC.hasBank() then
       local b=VC.bankSummary()
       if b then GameTooltip:AddLine('Guild bank: '..VC.money(b.gold)..(b.open>0 and ('  ·  '..b.open..' open requests') or ''),.85,.67,.33) end
@@ -3848,7 +3876,8 @@ SlashCmdList.VILLAGECOMMAND=function(message)
   command=(command or ''):lower()
   if not VillageCommandDB then return end
   local pages={promos='promos',promotions='promos',promote='promos',checklist='promos',roster='roster',overview='overview',progress='progress',progression='progress',stats='stats',fun='stats',
-    forge='forge',professions='forge',prof='forge',bank='bank'}
+    forge='forge',professions='forge',prof='forge',bank='bank',events='events',event='events',raid='events',raids='events',calendar='events',
+    bounties='bounties',bounty='bounties',board='bounties'}
   if command=='' then VC.toggle()
   elseif pages[command] then VC.open(pages[command])
   elseif command=='online' or command=='who' then
@@ -3865,7 +3894,11 @@ SlashCmdList.VILLAGECOMMAND=function(message)
   elseif command=='cancel' then VC.cancelJobs()
   elseif command=='sync' then
     if not VC.syncOn() then log('Sharing history is off (Settings), or you\'re not in a guild.',true)
-    else VC.sync.lastDump=0; VC.sayHello(); log('Asked guildmates running Village Command to compare history.',true) end
+    else
+      VC.sync.lastDump=0; VC.sayHello()
+      if VC.boardHello then VC.boardSync.lastDump=0; VC.boardHello() end
+      log('Asked guildmates running Village Command to compare history, events and bounties.',true)
+    end
   elseif command=='unblock' then
     if VillageCommandDB.blocked then VillageCommandDB.blocked[VC.flavor]=nil end
     log('Forgot the actions the game blocked; Village Command will try them again (the game says so if they\'re still blocked).',true)
@@ -3885,13 +3918,14 @@ SlashCmdList.VILLAGECOMMAND=function(message)
     local sy=VC.sync
     log(string.format('history sync %s: %d messages sent, %d received, %d pieces merged, %d not trusted, %d waiting; fingerprint %s%s',
       VC.syncOn() and 'on' or 'off',sy.sent,sy.received,sy.merged,sy.rejected,#sy.out,VC.digest(),sy.lastError and ('; last error: '..sy.lastError) or ''),true)
+    if VC.boardStatus then log(VC.boardStatus(),true) end
     log(string.format('can promote=%s demote=%s public notes=%s officer notes=%s view officer notes=%s; GuildForge=%s; Un-Ninja Bank=%s',
       tostring(p.promote),tostring(p.demote),tostring(p.publicNote),tostring(p.officerNote),tostring(p.viewOfficer),tostring(VC.hasForge()),tostring(VC.bankAPI()~=nil)),true)
   elseif command=='quiet' then
     VillageCommandDB.settings.quiet=not VillageCommandDB.settings.quiet
     log('Quiet mode '..(VillageCommandDB.settings.quiet and 'on' or 'off')..'.',true)
   else
-    log('/vc opens the window. Pages: /vc roster, progress, stats, forge, bank. Also: online lists who\'s on; settings; minimap toggles the button; cancel stops a mass change; sync compares history with guildmates now; status shows what your rank can do and the sync counters; unblock retries actions the game blocked before; blocked lists what the game blocked this session; quiet toggles chat messages.',true)
+    log('/vc opens the window. Pages: /vc roster, events, bounties, progress, stats, forge, bank. Also: online lists who\'s on; settings; minimap toggles the button; cancel stops a mass change; sync compares history with guildmates now; status shows what your rank can do and the sync counters; unblock retries actions the game blocked before; blocked lists what the game blocked this session; quiet toggles chat messages.',true)
   end
 end
 
@@ -3963,6 +3997,7 @@ frame:SetScript('OnEvent',function(_,event,...)
     if register then pcall(register,SYNC_PREFIX) end
     -- Say hello once the roster and guild have loaded.
     later(12,VC.sayHello)
+    if VC.boardLogin then VC.boardLogin() end
     log('v'..VERSION..' loaded. Click the guild tabard on the minimap or type /vc to open.')
   elseif not VC.ready then return
   elseif event=='GUILD_ROSTER_UPDATE' or event=='PLAYER_GUILD_UPDATE' or event=='GUILD_RANKS_UPDATE' or event=='PLAYER_ENTERING_WORLD' then
@@ -3977,12 +4012,15 @@ end)
 frame:SetScript('OnUpdate',function(_,elapsed)
   if not VC.ready then return end
   VC.tickJobs(elapsed)
+  -- Event attendance reads the group even in a raid (it only reads; anything to send waits in the queue).
+  if VC.boardLocalTick then VC.boardLocalTick(elapsed) end
   -- In combat or an instance (dungeon, raid, battleground) Village Command sits still: no roster requests
   -- or reads, no redraws, no sync messages, no samples, no celebrations. Forever (Midnight) blocks some of
   -- these there and blames the addon; it all catches up the moment you're out.
   if VC.paused() then VC.pausedForCombat=true; return end
   if VC.pausedForCombat then VC.pausedForCombat=nil; VC.readSoon(true); requestRedraw() end
   VC.syncDrain(elapsed)
+  if VC.boardTick then VC.boardTick(elapsed) end
   -- Roster updates come in bursts; read it at most every second and a half.
   sinceRead=sinceRead+elapsed
   if rosterDirty and sinceRead>=1.5 then

@@ -2,6 +2,15 @@
 
 All notable changes to Village Command are listed here.
 
+## [1.2.0] - Unreleased
+
+### Added
+- **Events tab: signups and attendance.** Plan a raid, dungeon run, PvP night or get-together with a day, time, size and note, and guildmates sign up as tank, healer or damage, or say maybe or can't. Each event shows who's coming by role and class. A reminder comes 15 minutes before and at the start. The leader or an officer can take attendance from their group or raid, and Village Command takes it on its own 15 minutes after the start if the leader is in a group, even inside the raid. **Regulars** lists who came to the most events in the last 60 days. **Announce in guild** posts one line in guild chat. Also `/vc events`.
+- **Bounties tab: a guild bounty board.** Post what you need (type it, or shift-click an item), how many, a reward and how long it stays up. Guildmates say they're on it, their bag count shows for item bounties, and they mark it sent. The poster marks it done and names who earned it: it goes in the activity feed and on the **Bounty hunters** leaderboard. The reward is paid in the game; addons can't hold gold. Also `/vc bounties`.
+- Events and bounties are shared with guildmates running Village Command as they change, and caught up at login like shared history. Only the leader or poster, or the trusted ranks, can change an event or bounty; signups and hunts only change their own person; and a different copy of one of your own records is answered with yours. `/vc sync` compares them too, and `/vc status` shows their counters.
+- **Overview: Coming up** lists the next three events with your answer, and how many bounties are open. Member tooltips say what event they've signed up for and how many they've attended; the minimap tooltip shows the next event.
+- Settings > Events and bounties: turn off the reminders, or the chat line when a guildmate posts an event or bounty.
+
 ## [1.1.4] - 2026-11-16
 
 ### Added

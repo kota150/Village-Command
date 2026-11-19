@@ -4,7 +4,7 @@
 
 **Run your guild from one window.**
 
-Village Command is a guild overview and progression suite. See everyone who's online, keep the roster tidy with notes and officer notes, promote or demote one member or fifty at once (Classic Era only), and watch the guild grow with progression tracking and fun stats. If you use **[GuildForge](https://www.curseforge.com/wow/addons/guild-forge-guild-profession-tracker)** or **[Un-Ninja Bank](https://www.curseforge.com/wow/addons/un-ninja-bank-guild-bank-sharing)**, they're in the same window too.
+Village Command is a guild overview and progression suite. See everyone who's online, plan events with signups and attendance, run a guild bounty board, keep the roster tidy with notes and officer notes, promote or demote one member or fifty at once (Classic Era only), and watch the guild grow with progression tracking and fun stats. If you use **[GuildForge](https://www.curseforge.com/wow/addons/guild-forge-guild-profession-tracker)** or **[Un-Ninja Bank](https://www.curseforge.com/wow/addons/un-ninja-bank-guild-bank-sharing)**, they're in the same window too.
 
 Built for **WoW Forever**. Also works on **Classic Era** and **Retail**.
 
@@ -25,6 +25,21 @@ Built for **WoW Forever**. Also works on **Classic Era** and **Retail**.
 - A **big banner with fireworks** and the level-up fanfare when someone hits the level cap.
 - Turn any of it off, or change the levels, under Settings > Celebrations.
 - **Minimap button** (a guild tabard) with a green badge counting guildmates online; hover it for who.
+
+## Events with signups and attendance
+
+- Plan a **raid, dungeon run, PvP night or get-together**. Guildmates sign up as **tank, healer or damage**, or say maybe or can't.
+- See who's coming in each role and **which classes**, at a glance.
+- **Reminders** in chat 15 minutes before, and at the start.
+- **Attendance** taken from the leader's raid or group, on its own 15 minutes in. **Regulars** shows who turns up most.
+- **Announce in guild** for guildmates without the addon.
+
+## Bounty board
+
+- **Post a bounty**: shift-click an item or type what you need, set how many, a gold reward and how long it stays up.
+- Guildmates click **I'm on it**. For items, their bag count shows as they collect.
+- Mark it **done**, name who earned it, and they climb the **Bounty hunters** leaderboard.
+- Shared with the whole guild, and caught up at login, even for those who were offline.
 
 ## The whole roster, in one fast list
 

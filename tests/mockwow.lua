@@ -68,7 +68,7 @@ function wipe(t) for k in pairs(t) do t[k]=nil end return t end
 function GameTooltip_Hide() end
 YES,NO,CANCEL='Yes','No','Cancel'
 CLOCK=1762100000
-function time() return math.floor(CLOCK) end
+function time(t) if t then return os.time(t) end return math.floor(CLOCK) end
 function date(fmt,t) return os.date(fmt,t or math.floor(CLOCK)) end
 function GetTime() return CLOCK-1762000000 end
 timers={}
@@ -133,7 +133,29 @@ end,IsAddOnLoaded=function(name) return LOADED_ADDONS and LOADED_ADDONS[name] or
 REALM=REALM or 'Living Flame'
 PLAYER=PLAYER or 'Arcbinky'
 function GetRealmName() return REALM end
-function UnitName() return PLAYER,SURNAME end
+-- GROUP: the other people in your party or raid, {unit={name,second}} (second: realm, or surname on Forever).
+GROUP={}
+IN_RAID=false
+function UnitName(unit)
+  if unit==nil or unit=='player' then return PLAYER,SURNAME end
+  local x=GROUP[unit]
+  if x then return x[1],x[2] end
+end
+function UnitExists(unit) return unit=='player' or GROUP[unit]~=nil end
+function GetNumGroupMembers() local n=0; for _ in pairs(GROUP) do n=n+1 end return n>0 and n+(IN_RAID and 0 or 1) or 0 end
+function IsInRaid() return IN_RAID end
+-- Items: BAGS[itemId]=count; ITEMS[itemId]=name.
+BAGS,ITEMS={},{[12359]='Thorium Bar'}
+function GetItemCount(id) return BAGS[id] or 0 end
+function GetItemInfo(id) local n=ITEMS[id]; if n then return n,'|cffffffff|Hitem:'..id..'::::::::60:::::|h['..n..']|h|r' end end
+function GetItemIcon() return 'Interface\\Icons\\INV_Ingot_Thorium' end
+CHAT={}
+function SendChatMessage(text,channel) if #text>255 then error('chat message too long') end CHAT[#CHAT+1]={text,channel} end
+HOOKS={}
+function hooksecurefunc(a,b,c) if type(a)=='string' then HOOKS[a]=b else HOOKS[b]=c end end
+function ChatEdit_InsertLink(link) if HOOKS.ChatEdit_InsertLink then HOOKS.ChatEdit_InsertLink(link) end return false end
+WHISPERED={}
+function ChatFrame_SendTell(name) WHISPERED[#WHISPERED+1]=name end
 function GetBuildInfo() return '1.15.0',1,'',INTERFACE or 11509 end
 function GetMaxPlayerLevel() return 60 end
 
