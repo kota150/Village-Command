@@ -2,6 +2,12 @@
 
 All notable changes to Village Command are listed here.
 
+## [1.2.1] - 2026-11-19
+
+### Fixed
+- Drop-down menus (like the event date picker) draw above dialog buttons instead of having them show through, and long lists wrap into columns so they stay on screen.
+- Settings descriptions wrap inside their own column and each setting makes room for its description, so nothing overlaps.
+
 ## [1.2.0] - 2026-11-19
 
 ### Added
@@ -10,10 +16,6 @@ All notable changes to Village Command are listed here.
 - Events and bounties are shared with guildmates running Village Command as they change, and caught up at login like shared history. Only the leader or poster, or the trusted ranks, can change an event or bounty; signups and hunts only change their own person; and a different copy of one of your own records is answered with yours. `/vc sync` compares them too, and `/vc status` shows their counters.
 - **Overview: Coming up** lists the next three events with your answer, and how many bounties are open. Member tooltips say what event they've signed up for and how many they've attended; the minimap tooltip shows the next event.
 - Settings > Events and bounties: turn off the reminders, or the chat line when a guildmate posts an event or bounty.
-
-### Fixed
-- Drop-down menus (like the event date picker) draw above dialog buttons instead of having them show through, and long lists wrap into columns so they stay on screen.
-- Settings descriptions wrap inside their own column and each setting makes room for its description, so nothing overlaps.
 
 ## [1.1.4] - 2026-11-16
 
