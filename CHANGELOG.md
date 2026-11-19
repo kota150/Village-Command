@@ -2,7 +2,7 @@
 
 All notable changes to Village Command are listed here.
 
-## [1.2.0] - Unreleased
+## [1.2.0] - 2026-11-19
 
 ### Added
 - **Events tab: signups and attendance.** Plan a raid, dungeon run, PvP night or get-together with a day, time, size and note, and guildmates sign up as tank, healer or damage, or say maybe or can't. Each event shows who's coming by role and class. A reminder comes 15 minutes before and at the start. The leader or an officer can take attendance from their group or raid, and Village Command takes it on its own 15 minutes after the start if the leader is in a group, even inside the raid. **Regulars** lists who came to the most events in the last 60 days. **Announce in guild** posts one line in guild chat. Also `/vc events`.
