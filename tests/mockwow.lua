@@ -41,6 +41,8 @@ local function newObj(kind,name,parent)
     if k=='GetTop' then return function() return 400 end end
     if k=='GetVerticalScroll' then return function(self) return self.__scroll end end
     if k=='SetVerticalScroll' then return function(self,v) self.__scroll=v end end
+    if k=='SetFrameStrata' then return function(self,v) self.__strata=v end end
+    if k=='SetSize' then return function(self,w,h) self.__w,self.__h=w,h end end
     if k=='GetHeight' then return function() return 300 end end
     if k=='GetWidth' or k=='GetStringHeight' or k=='GetStringWidth' or k=='GetFrameLevel' or k=='GetEffectiveScale' then return function() return 10 end end
     if k=='GetCenter' then return function() return 0,0 end end

@@ -967,6 +967,14 @@ def main():
     wb.vc.selectTab('progress'); wb.tick(0.3)
     check('welcome back: the feed draws it', wb.vc.panelErrors is None)
 
+    # Menus draw above dialogs, and long lists wrap into columns ------------------------------------
+    mn = Client()
+    mn.vc.open('roster')
+    mn.run('local items={}; for i=1,30 do items[i]={text="Day "..i} end; VC_NS.showMenu(VillageCommandWindow,items)')
+    menu = mn.g.VillageCommandMenu
+    check('menu: above dialogs', menu.__strata == 'TOOLTIP', menu.__strata)
+    check('menu: 30 items wrap into two columns of 16', menu.__h == 16 * 18 + 12 and menu.__w == 150 * 2 + 12, (menu.__w, menu.__h))
+
     # Escape closes our windows without touching UISpecialFrames or Blizzard's popups ---------------
     ce = Client()
     check('escape: nothing added to UISpecialFrames', len(ce.g.UISpecialFrames) == 0)

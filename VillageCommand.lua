@@ -1732,7 +1732,8 @@ function VC.showMenu(anchor,items)
   local m=VC.menu
   if not m then
     m=CreateFrame('Frame','VillageCommandMenu',UIParent,BACKDROP_TEMPLATE)
-    skin(m,.97); m:SetFrameStrata('FULLSCREEN_DIALOG'); m:EnableMouse(true); m:SetClampedToScreen(true)
+    -- Above every dialog (they're FULLSCREEN_DIALOG too, and a later one would draw over the menu).
+    skin(m,.97); m:SetFrameStrata('TOOLTIP'); m:SetToplevel(true); m:EnableMouse(true); m:SetClampedToScreen(true)
     m.buttons={}
     VC.closeOnEscape(m,1)
     VC.menu=m
@@ -1740,17 +1741,20 @@ function VC.showMenu(anchor,items)
   if m:IsShown() and m.anchor==anchor then m:Hide(); return end
   m.anchor=anchor
   for _,b in ipairs(m.buttons) do b:Hide() end
+  -- Long lists wrap into columns of up to MENU_ROWS so they stay on screen.
+  local MENU_ROWS,ROW=16,18
+  local perCol=math.min(#items,MENU_ROWS)
+  local cols=math.max(1,math.ceil(#items/MENU_ROWS))
   local width=150
   for i,item in ipairs(items) do
     local b=m.buttons[i]
     if not b then
       b=CreateFrame('Button',nil,m)
-      b:SetHeight(18)
+      b:SetHeight(ROW)
       b.text=fontString(b,'GameFontHighlightSmall'); b.text:SetPoint('LEFT',6,0); b.text:SetPoint('RIGHT',-6,0)
       addHighlight(b,.35)
       m.buttons[i]=b
     end
-    b:ClearAllPoints(); b:SetPoint('TOPLEFT',6,-6-(i-1)*18); b:SetPoint('RIGHT',-6,0)
     b.text:SetText(item.text)
     b.text:SetTextColor(item.disabled and .5 or 1,item.disabled and .5 or 1,item.disabled and .5 or 1)
     b:SetScript('OnClick',function() m:Hide(); if not item.disabled and item.func then item.func() end end)
@@ -1759,9 +1763,14 @@ function VC.showMenu(anchor,items)
     local w=(b.text.GetStringWidth and tonumber((b.text:GetStringWidth())) or 0)+28
     if w>width then width=w end
   end
-  m:SetSize(width,#items*18+12)
+  for i in ipairs(items) do
+    local b=m.buttons[i]
+    local col,row=math.floor((i-1)/MENU_ROWS),(i-1)%MENU_ROWS
+    b:ClearAllPoints(); b:SetPoint('TOPLEFT',6+col*width,-6-row*ROW); b:SetWidth(width)
+  end
+  m:SetSize(width*cols+12,perCol*ROW+12)
   m:ClearAllPoints(); m:SetPoint('TOPLEFT',anchor,'BOTTOMLEFT',0,-2)
-  m:Show()
+  m:Show(); m:Raise()
 end
 function VC.hideMenu() if VC.menu then VC.menu:Hide() end end
 
@@ -3580,17 +3589,26 @@ function VC.makeSettingsPanel(f,inset)
   local title=panel:CreateFontString(nil,'OVERLAY','GameFontNormalLarge'); title:SetPoint('TOPLEFT',18,-16); title:SetText('Settings')
   local y,colX=-50,16
   local checks={}
+  -- Two columns: left from 16, right from 440. Hints wrap inside their column, and each setting takes as
+  -- much height as its hint needs, so nothing runs into the next one.
+  local COL_W=410
+  local function hintHeight(fs)
+    local h=fs.GetStringHeight and tonumber((fs:GetStringHeight())) or 0
+    if not h or h<=0 then h=12 end
+    return h
+  end
   local function check(label,hint,get,set)
     local c=CreateFrame('CheckButton',nil,panel,'UICheckButtonTemplate')
     c:SetSize(26,26); c:SetPoint('TOPLEFT',colX,y)
     local text=panel:CreateFontString(nil,'OVERLAY','GameFontHighlight'); text:SetPoint('LEFT',c,'RIGHT',4,1); text:SetText(label)
-    local sub=panel:CreateFontString(nil,'OVERLAY','GameFontDisableSmall'); sub:SetPoint('TOPLEFT',text,'BOTTOMLEFT',0,-2); sub:SetText(hint)
-    sub:SetWidth(380); sub:SetJustifyH('LEFT')
+    local sub=panel:CreateFontString(nil,'OVERLAY','GameFontDisableSmall'); sub:SetPoint('TOPLEFT',text,'BOTTOMLEFT',0,-2)
+    sub:SetWidth(COL_W-34); sub:SetJustifyH('LEFT')
     if sub.SetWordWrap then sub:SetWordWrap(true) end
+    sub:SetText(hint)
     c.get=get
     c:SetScript('OnClick',function(self) set(self:GetChecked() and true or false); requestRedraw() end)
     checks[#checks+1]=c
-    y=y-44
+    y=y-(30+hintHeight(sub)+10)
   end
   check('Show minimap button','Left-click opens Village Command, right-click opens the roster. Also /vc minimap.',
     function() return not VillageCommandDB.minimap.hide end,
@@ -3608,13 +3626,16 @@ function VC.makeSettingsPanel(f,inset)
     local minus=smallButton(panel,'-',24,20); minus:SetPoint('TOPLEFT',250,y)
     local value=fontString(panel,'GameFontHighlight','CENTER'); value:SetPoint('LEFT',minus,'RIGHT',4,0); value:SetWidth(110)
     local plus=smallButton(panel,'+',24,20); plus:SetPoint('LEFT',value,'RIGHT',4,0)
-    local sub=panel:CreateFontString(nil,'OVERLAY','GameFontDisableSmall'); sub:SetPoint('TOPLEFT',text,'BOTTOMLEFT',0,-4); sub:SetText(hint)
+    local sub=panel:CreateFontString(nil,'OVERLAY','GameFontDisableSmall'); sub:SetPoint('TOPLEFT',text,'BOTTOMLEFT',0,-4)
+    sub:SetWidth(COL_W-10); sub:SetJustifyH('LEFT')
+    if sub.SetWordWrap then sub:SetWordWrap(true) end
+    sub:SetText(hint)
     text:SetText(label)
     local function show() value:SetText(format(get())) end
     minus:SetScript('OnClick',function() change(-1); show() end)
     plus:SetScript('OnClick',function() change(1); show() end)
     show()
-    y=y-48
+    y=y-(34+hintHeight(sub)+4)
   end
   stepper('Window scale','Also: drag the window by its edges to move it.',function() return settings().scale or 1 end,
     function(dir) setScale((settings().scale or 1)+dir*.05) end,function(v) return math.floor(v*100+.5)..'%' end)

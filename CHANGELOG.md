@@ -11,6 +11,10 @@ All notable changes to Village Command are listed here.
 - **Overview: Coming up** lists the next three events with your answer, and how many bounties are open. Member tooltips say what event they've signed up for and how many they've attended; the minimap tooltip shows the next event.
 - Settings > Events and bounties: turn off the reminders, or the chat line when a guildmate posts an event or bounty.
 
+### Fixed
+- Drop-down menus (like the event date picker) draw above dialog buttons instead of having them show through, and long lists wrap into columns so they stay on screen.
+- Settings descriptions wrap inside their own column and each setting makes room for its description, so nothing overlaps.
+
 ## [1.1.4] - 2026-11-16
 
 ### Added
