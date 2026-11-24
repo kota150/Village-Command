@@ -78,7 +78,7 @@ The **Village Points** tab keeps a points system for raids and loot that the who
 - which guildmates were in the raid, online and in the same zone, and for how long;
 - every boss kill, and who was there for it.
 
-A raid counts once 5 guildmates are in it together. Once a player is out, their report goes to the officers. An officer's Village Command waits 5 minutes for the others, then settles the raid:
+A raid counts once 5 guildmates are in it together (a rule), and only inside a raid instance: dungeon runs never count, even in a raid group. Once a player is out, their report goes to the officers. An officer's Village Command waits 5 minutes for the others, then settles the raid:
 - **Yes/no questions** go by majority vote, with an officer breaking ties. For example: was Gehennas killed? Was Bolt there for it?
 - **Numbers** use the median, which ignores outliers. For example: when did someone arrive, and how long did they stay?
 - **Quorum:** a raid needs reports from 3 clients or from one officer. With fewer, it waits on the tab for an officer to **approve** it.

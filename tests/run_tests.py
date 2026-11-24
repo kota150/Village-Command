@@ -1164,6 +1164,14 @@ def main():
     everyone('GROUP=%s; IN_RAID=true; IN_INSTANCE=true; INSTANCE={"Molten Core",409}' % group)
     for c in V.values():
         c.tick(21)
+    # A guild dungeon run never counts, even with a raid group of guildmates: only raid instances do.
+    D = V['Lyra']
+    D.run('INSTANCE_TYPE="party"; VC_NS.vpData().cur=nil')
+    D.tick(21)
+    D.fire('ENCOUNTER_END', 227, 'Rend Blackhand', 1, 10, 1)
+    check('points: a dungeon run doesn\'t count', D.vc.vpData().cur is None and count(D.vc.vpData().mine) == 1)
+    D.run('INSTANCE_TYPE=nil')
+    D.tick(21)
     check('points: a report starts inside the raid', all(c.vc.vpData().cur is not None for c in V.values()))
     check('points: nothing is sent inside', all(len(c.g.OUT) == 0 for c in V.values()))
     def kill(enc, boss, t, skip=()):
