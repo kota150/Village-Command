@@ -284,6 +284,9 @@ local function dialog(name,w,h,title)
   if d.SetBackdrop then
     d:SetBackdrop({bgFile='Interface\\DialogFrame\\UI-DialogBox-Background',edgeFile='Interface\\DialogFrame\\UI-DialogBox-Border',tile=true,tileSize=32,edgeSize=32,insets={left=11,right=12,top=12,bottom=11}})
   end
+  -- The dialog backdrop is see-through; a solid backing keeps the page behind from showing through.
+  local backing=d:CreateTexture(nil,'BACKGROUND',nil,1)
+  backing:SetPoint('TOPLEFT',12,-12); backing:SetPoint('BOTTOMRIGHT',-12,12); backing:SetColorTexture(.07,.05,.035,.96)
   VC.closeOnEscape(d,3)
   d.title=ui.fontString(d,'GameFontNormal','CENTER'); d.title:SetPoint('TOP',0,-18)
   d.y=-46

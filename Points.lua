@@ -49,7 +49,7 @@ VC.VP_RULES={
   {key='quorum',label='Reports needed',default=3,min=1,max=10,hint='Reports from this many clients settle a raid on their own; fewer need an officer\'s.'},
   {key='grace',label='Grace minutes',default=15,min=0,max=120,hint='How late after the raid started still counts as on time.'},
   {key='scale',label='Loot cost %',default=100,min=1,max=1000,hint='Suggested loot cost: item level times the slot weight times this.'},
-  {key='minGuild',label='Guildmates for a raid',default=5,min=2,max=40,hint='A raid counts once this many guildmates are in it together.'},
+  {key='minGuild',label='Guildmates needed',default=5,min=2,max=40,hint='A raid counts once this many guildmates are in it together.'},
 }
 VC.VP_RULE={}
 for _,r in ipairs(VC.VP_RULES) do VC.VP_RULE[r.key]=r end

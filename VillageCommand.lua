@@ -1860,7 +1860,8 @@ end
 factories.note=function()
   local f=CreateFrame('Frame',nil,pageContent)
   f.text=f:CreateFontString(nil,'OVERLAY','GameFontHighlightSmall')
-  f.text:SetPoint('TOPLEFT',6,-2); f.text:SetPoint('RIGHT',-6,0); f.text:SetJustifyH('LEFT'); f.text:SetJustifyV('TOP')
+  -- Width set by VC.note (not anchored on the right), so its height can be measured before it's placed.
+  f.text:SetPoint('TOPLEFT',6,-2); f.text:SetJustifyH('LEFT'); f.text:SetJustifyV('TOP')
   if f.text.SetWordWrap then f.text:SetWordWrap(true) end
   return f
 end
@@ -1988,6 +1989,9 @@ function VC.buttons(list)
 end
 function VC.note(text,height)
   local f=acquire('note')
+  -- Give the text its width before measuring it: until the note is placed, the game measures it as one
+  -- line, and a longer note was cut off with "..." instead of wrapping.
+  f.text:SetWidth(math.max(50,pageWidth-12))
   f.text:SetText(text)
   local h=height or math.max(16,(f.text.GetStringHeight and tonumber((f.text:GetStringHeight())) or 14)+6)
   f:SetHeight(h)

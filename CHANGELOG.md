@@ -28,6 +28,8 @@ All notable changes to Village Command are listed here.
 - Member tooltips show Village Points, Loot Points and priority. `/vc status` and `/vc sync` cover Village Points too.
 
 ### Fixed
+- Long explanations at the top of a page wrap onto as many lines as they need instead of being cut off with "...".
+- The page no longer shows through the event, bounty and Village Points dialogs.
 - Attendance passed on by a guildmate who isn't the leader or an officer is no longer refused. It keeps the name of whoever took it. Before, a guildmate logging in later could miss an event's attendance.
 
 ## [1.2.1] - 2026-11-19
