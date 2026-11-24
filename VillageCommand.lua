@@ -2,7 +2,8 @@
 -- Online members, the full roster with notes and officer notes, mass promote / demote / set rank / notes,
 -- fun stats, progression tracking, and one window that ties in GuildForge (professions) and Un-Ninja Bank
 -- (guild bank). Both are optional: their pages say how to get them when they aren't installed.
--- Guild events (signups and attendance) and the bounty board live in Board.lua and BoardUI.lua.
+-- Guild events (signups and attendance) and the bounty board live in Board.lua and BoardUI.lua; Village
+-- Points (raid points and loot priority) in Points.lua and PointsUI.lua.
 -- The release packager writes the git tag into the TOC; an unpackaged checkout still shows the placeholder.
 -- Look the addon up by the folder WoW loaded it from: the modern lookup errors on an unknown name.
 local addonName=...
@@ -1187,6 +1188,10 @@ function VC.onSyncMessage(msg,sender)
       sy.dumpsTo[senderId]={digest=mine,at=now()}
       later(1+math.random()*3,VC.sendHistory)
     end
+  elseif kind=='P' and VC.pointsMessage then
+    -- Village Points (Points.lua): P|<kind>|...
+    local ok,err=pcall(VC.pointsMessage,rest,senderId)
+    if not ok then VC.vpSync.lastError=tostring(err) end
   elseif VC.onBoardMessage and kind then
     -- Events and bounties (Board.lua) share the channel and its pace.
     VC.onBoardMessage(kind,rest,senderId)
@@ -2320,6 +2325,7 @@ function VC.memberTooltip(owner,m)
   local _,readyBy=VC.readyForPromotion()
   if readyBy[m.id] then GameTooltip:AddLine('Ready for promotion to '..(VC.rankNames()[readyBy[m.id].to] or '?'),1,.82,0) end
   if VC.boardMemberLines then VC.boardMemberLines(GameTooltip,m) end
+  if VC.pointsMemberLines then VC.pointsMemberLines(GameTooltip,m) end
   if m.points then GameTooltip:AddLine(m.points..' achievement points',.7,.7,.7) end
   GameTooltip:AddLine(' ')
   GameTooltip:AddLine('|cffffd100Click|r  open in the roster',.7,.7,.7)
@@ -3898,8 +3904,9 @@ SlashCmdList.VILLAGECOMMAND=function(message)
   if not VillageCommandDB then return end
   local pages={promos='promos',promotions='promos',promote='promos',checklist='promos',roster='roster',overview='overview',progress='progress',progression='progress',stats='stats',fun='stats',
     forge='forge',professions='forge',prof='forge',bank='bank',events='events',event='events',raid='events',raids='events',calendar='events',
-    bounties='bounties',bounty='bounties',board='bounties'}
+    bounties='bounties',bounty='bounties',board='bounties',vp='points',standings='points',loot='points'}
   if command=='' then VC.toggle()
+  elseif command=='points' or command=='villagepoints' then VC.pointsCommand(arg)
   elseif pages[command] then VC.open(pages[command])
   elseif command=='online' or command=='who' then
     local online={}
@@ -3918,7 +3925,8 @@ SlashCmdList.VILLAGECOMMAND=function(message)
     else
       VC.sync.lastDump=0; VC.sayHello()
       if VC.boardHello then VC.boardSync.lastDump=0; VC.boardHello() end
-      log('Asked guildmates running Village Command to compare history, events and bounties.',true)
+      if VC.pointsHello then VC.vpSync.lastDump=0; VC.pointsHello() end
+      log('Asked guildmates running Village Command to compare history, events, bounties and Village Points.',true)
     end
   elseif command=='unblock' then
     if VillageCommandDB.blocked then VillageCommandDB.blocked[VC.flavor]=nil end
@@ -3940,13 +3948,14 @@ SlashCmdList.VILLAGECOMMAND=function(message)
     log(string.format('history sync %s: %d messages sent, %d received, %d pieces merged, %d not trusted, %d waiting; fingerprint %s%s',
       VC.syncOn() and 'on' or 'off',sy.sent,sy.received,sy.merged,sy.rejected,#sy.out,VC.digest(),sy.lastError and ('; last error: '..sy.lastError) or ''),true)
     if VC.boardStatus then log(VC.boardStatus(),true) end
+    if VC.pointsStatus then log(VC.pointsStatus(),true) end
     log(string.format('can promote=%s demote=%s public notes=%s officer notes=%s view officer notes=%s; GuildForge=%s; Un-Ninja Bank=%s',
       tostring(p.promote),tostring(p.demote),tostring(p.publicNote),tostring(p.officerNote),tostring(p.viewOfficer),tostring(VC.hasForge()),tostring(VC.bankAPI()~=nil)),true)
   elseif command=='quiet' then
     VillageCommandDB.settings.quiet=not VillageCommandDB.settings.quiet
     log('Quiet mode '..(VillageCommandDB.settings.quiet and 'on' or 'off')..'.',true)
   else
-    log('/vc opens the window. Pages: /vc roster, events, bounties, progress, stats, forge, bank. Also: online lists who\'s on; settings; minimap toggles the button; cancel stops a mass change; sync compares history with guildmates now; status shows what your rank can do and the sync counters; unblock retries actions the game blocked before; blocked lists what the game blocked this session; quiet toggles chat messages.',true)
+    log('/vc opens the window. Pages: /vc roster, events, bounties, points, progress, stats, forge, bank. /vc points help: Village Points commands. Also: online lists who\'s on; settings; minimap toggles the button; cancel stops a mass change; sync compares history with guildmates now; status shows what your rank can do and the sync counters; unblock retries actions the game blocked before; blocked lists what the game blocked this session; quiet toggles chat messages.',true)
   end
 end
 
@@ -4019,6 +4028,7 @@ frame:SetScript('OnEvent',function(_,event,...)
     -- Say hello once the roster and guild have loaded.
     later(12,VC.sayHello)
     if VC.boardLogin then VC.boardLogin() end
+    if VC.pointsLogin then VC.pointsLogin() end
     log('v'..VERSION..' loaded. Click the guild tabard on the minimap or type /vc to open.')
   elseif not VC.ready then return
   elseif event=='GUILD_ROSTER_UPDATE' or event=='PLAYER_GUILD_UPDATE' or event=='GUILD_RANKS_UPDATE' or event=='PLAYER_ENTERING_WORLD' then
@@ -4035,13 +4045,19 @@ frame:SetScript('OnUpdate',function(_,elapsed)
   VC.tickJobs(elapsed)
   -- Event attendance reads the group even in a raid (it only reads; anything to send waits in the queue).
   if VC.boardLocalTick then VC.boardLocalTick(elapsed) end
+  -- Village Points keeps its raid report the same way: it only reads the raid, and sends once you're out.
+  if VC.pointsLocalTick then VC.pointsLocalTick(elapsed) end
   -- In combat or an instance (dungeon, raid, battleground) Village Command sits still: no roster requests
   -- or reads, no redraws, no sync messages, no samples, no celebrations. Forever (Midnight) blocks some of
   -- these there and blames the addon; it all catches up the moment you're out.
   if VC.paused() then VC.pausedForCombat=true; return end
-  if VC.pausedForCombat then VC.pausedForCombat=nil; VC.readSoon(true); requestRedraw() end
+  if VC.pausedForCombat then
+    VC.pausedForCombat=nil; VC.readSoon(true); requestRedraw()
+    if VC.pointsUnpaused then VC.pointsUnpaused() end
+  end
   VC.syncDrain(elapsed)
   if VC.boardTick then VC.boardTick(elapsed) end
+  if VC.pointsTick then VC.pointsTick(elapsed) end
   -- Roster updates come in bursts; read it at most every second and a half.
   sinceRead=sinceRead+elapsed
   if rosterDirty and sinceRead>=1.5 then

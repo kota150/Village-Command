@@ -41,6 +41,15 @@ Built for **WoW Forever**. Also works on **Classic Era** and **Retail**.
 - Mark it **done**, name who earned it, and they climb the **Bounty hunters** leaderboard.
 - Shared with the whole guild, and caught up at login, even for those who were offline.
 
+## Village Points: raid points and loot priority
+
+- **Earn Village Points by raiding**: on time, every boss kill. **Loot costs Loot Points**, suggested from the item's level and slot.
+- **Priority = Village Points ÷ Loot Points**, the same for everyone, fading 10% a week. Hover anyone to see why they have what they have.
+- **Fair by design**: nothing is sent inside the raid. Everyone's addon keeps notes and compares them once you're out. Yes/no questions go by majority vote and times by the median, so one disconnect or one edited addon can't change the result. Only officers award loot or change points.
+- Officers: award loot, adjust, bench, undo, and set every rule.
+- **Renown**: a community score for events, bounties and levels, never used for loot.
+- A **Discord companion** (in the GitHub repository) posts the standings, every raid and every loot award.
+
 ## The whole roster, in one fast list
 
 - Class-colored names, level, rank, zone (or how long since they were last on), public note and officer note.

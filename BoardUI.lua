@@ -311,6 +311,7 @@ local function dialog(name,w,h,title)
   d:Hide()
   return d
 end
+VC.makeDialog=dialog
 
 -- The day at midnight, `offset` days from today.
 local function dayStart(offset)

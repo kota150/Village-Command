@@ -53,7 +53,7 @@ local function newObj(kind,name,parent)
   end})
 end
 KNOWN_EVENTS={}
-for _,e in ipairs({'ADDON_ACTION_FORBIDDEN','ADDON_ACTION_BLOCKED','PLAYER_LOGIN','PLAYER_ENTERING_WORLD','PLAYER_GUILD_UPDATE','GUILD_ROSTER_UPDATE','GUILD_RANKS_UPDATE','GUILD_MOTD','PLAYER_REGEN_ENABLED'}) do KNOWN_EVENTS[e]=true end
+for _,e in ipairs({'ADDON_ACTION_FORBIDDEN','ADDON_ACTION_BLOCKED','PLAYER_LOGIN','PLAYER_ENTERING_WORLD','PLAYER_GUILD_UPDATE','GUILD_ROSTER_UPDATE','GUILD_RANKS_UPDATE','GUILD_MOTD','PLAYER_REGEN_ENABLED','ENCOUNTER_END','BOSS_KILL'}) do KNOWN_EVENTS[e]=true end
 function CreateFrame(kind,name,parent,template)
   local f=newObj(kind,name,parent); frames[#frames+1]=f
   if type(template)=='string' and template:find('Secure') then f.__protected=true end
@@ -149,7 +149,12 @@ function IsInRaid() return IN_RAID end
 -- Items: BAGS[itemId]=count; ITEMS[itemId]=name.
 BAGS,ITEMS={},{[12359]='Thorium Bar'}
 function GetItemCount(id) return BAGS[id] or 0 end
-function GetItemInfo(id) local n=ITEMS[id]; if n then return n,'|cffffffff|Hitem:'..id..'::::::::60:::::|h['..n..']|h|r' end end
+ITEM_LEVELS={}
+function GetItemInfo(id)
+  if type(id)=='string' then id=tonumber(id:match('item:(%d+)')) end
+  local n=ITEMS[id]
+  if n then local lv=ITEM_LEVELS[id] or {}; return n,'|cffffffff|Hitem:'..id..'::::::::60:::::|h['..n..']|h|r',4,lv[1],60,'Armor','Cloth',1,lv[2] end
+end
 function GetItemIcon() return 'Interface\\Icons\\INV_Ingot_Thorium' end
 CHAT={}
 function SendChatMessage(text,channel) if #text>255 then error('chat message too long') end CHAT[#CHAT+1]={text,channel} end
@@ -190,7 +195,17 @@ C_ChatInfo={
     return 0
   end,
 }
-function IsInInstance() return IN_INSTANCE==true end
+function IsInInstance() return IN_INSTANCE==true,IN_INSTANCE and (INSTANCE_TYPE or 'raid') or 'none' end
+-- The instance you're in: INSTANCE={name,id}.
+function GetInstanceInfo() local x=INSTANCE or {'Molten Core',409} return x[1],'raid',9,'40 Player',40,0,false,x[2] end
+-- Raid roster extras: OFFLINE[name]=true for a disconnected raid member, ELSEWHERE[name]=true for one in another zone.
+function GetRaidRosterInfo(i)
+  local x=GROUP['raid'..i]
+  if not x then return nil end
+  local zone=(ELSEWHERE and ELSEWHERE[x[1]]) and 'Orgrimmar' or ((INSTANCE or {'Molten Core'})[1])
+  return x[1],0,1,60,'Warrior','WARRIOR',zone,not (OFFLINE and OFFLINE[x[1]])
+end
+function GetRealZoneText() return IN_INSTANCE and (INSTANCE or {'Molten Core'})[1] or 'Orgrimmar' end
 local classes={{'Warrior','WARRIOR'},{'Mage','MAGE'},{'Priest','PRIEST'},{'Rogue','ROGUE'},{'Hunter','HUNTER'}}
 local zones={'Orgrimmar','Stranglethorn Vale','Blackrock Mountain','Tanaris'}
 ROSTER={}
@@ -277,4 +292,26 @@ function VC_TEST_tick(seconds)
       if h then h(f,step) end
     end
   end
+end
+-- Writes a value the way WoW writes SavedVariables, for the Discord companion's tests.
+function VC_TEST_serialize(v,indent)
+  indent=indent or ''
+  local t=type(v)
+  if t=='string' then return string.format('%q',v) end
+  if t=='number' then
+    if v==math.floor(v) and math.abs(v)<1e15 then return string.format('%d',v) end
+    return string.format('%.17g',v)
+  end
+  if t=='boolean' then return tostring(v) end
+  if t~='table' then return 'nil' end
+  local keys={}
+  for k in pairs(v) do if type(k)=='string' or type(k)=='number' then keys[#keys+1]=k end end
+  table.sort(keys,function(a,b) if type(a)~=type(b) then return type(a)=='number' end return a<b end)
+  local out={'{'}
+  for _,k in ipairs(keys) do
+    local key=type(k)=='string' and string.format('[%q]',k) or ('['..k..']')
+    out[#out+1]=indent..'\t'..key..' = '..VC_TEST_serialize(v[k],indent..'\t')..','
+  end
+  out[#out+1]=indent..'}'
+  return table.concat(out,'\n')
 end

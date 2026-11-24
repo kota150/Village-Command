@@ -1,0 +1,13 @@
+{
+  "webhook": "https://discord.com/api/webhooks/<id>/<token>",
+  "wow_dir": "/Applications/World of Warcraft",
+  "savedvars": "",
+  "account": "",
+  "guild": "",
+  "top": 25,
+  "raids_webhook": "",
+  "loot_webhook": "",
+  "officer_webhook": "",
+  "export": "",
+  "interval": 15
+}

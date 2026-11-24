@@ -18,3 +18,7 @@ Desktop.ini
 # Test runner environment
 .venv/
 __pycache__/
+
+# Discord companion settings (the webhook URL is a secret) and its memory of what it posted
+companion/villagecommand.json
+companion/.villagecommand_state.json

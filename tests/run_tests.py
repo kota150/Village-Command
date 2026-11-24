@@ -644,7 +644,7 @@ def main():
     before = len(net.delivered)
     B.g.SlashCmdList.VILLAGECOMMAND('sync')
     net.pump(15)
-    check('sync: once in step, a hello costs one message (and one for events and bounties)', len(net.delivered) - before == 2, net.delivered[before:])
+    check('sync: once in step, a hello costs one message (and one each for events and bounties, and Village Points)', len(net.delivered) - before == 3, net.delivered[before:])
 
     # What B knew that A didn't goes back to A
     B.run('''
@@ -696,13 +696,13 @@ def main():
     F.run('IN_INSTANCE=true; IN_COMBAT=true; C_ChatInfo.InChatMessagingLockdown=function() return true end')
     F.g.SlashCmdList.VILLAGECOMMAND('sync')
     F.tick(5)
-    check('sync: held while the game locks addon chat', len(F.g.OUT) == 0 and len(F.vc.sync.out) == 2, len(F.vc.sync.out))
+    check('sync: held while the game locks addon chat', len(F.g.OUT) == 0 and len(F.vc.sync.out) == 3, len(F.vc.sync.out))
     F.run('IN_COMBAT=false')
     F.tick(2)
     check('sync: still held in the instance while the game reports the lockdown', len(F.g.OUT) == 0)
     F.run('IN_INSTANCE=false')
     F.tick(2)
-    check('sync: and sent once you\'re out', len(F.g.OUT) == 2, len(F.g.OUT))
+    check('sync: and sent once you\'re out', len(F.g.OUT) == 3, len(F.g.OUT))
     for x in (A, B):
         x.g.SlashCmdList.VILLAGECOMMAND('status')
     check('sync: /vc status reports it', any('history sync on' in s for s in A.g.PRINTED.values()))
@@ -1138,6 +1138,207 @@ def main():
     fnet.pump(5)
     check('forever: attendance with surnames', WB.vc.attendanceCount(WB.vc.boardData().ev[fid]) == 2)
     check('forever: in step', WA.vc.boardDigest() == WB.vc.boardDigest())
+
+    # Village Points: the Molten Core night ----------------------------------------------------------
+    # Thrag (Officer) and five Members raid with two guildmates who don't run the addon. Bolt disconnects
+    # for Gehennas; Dunn's addon is edited to claim 8 extra kills and hours more for himself.
+    crew = [('Thrag', 1), ('Mira', 3), ('Bolt', 3), ('Kesh', 3), ('Lyra', 3), ('Dunn', 3)]
+    def vp_client(name, rank, setup=''):
+        others = ','.join('{"%s",%d,60}' % (n, r) for n, r in crew + [('Sage', 3)] if n != name)
+        return Client('PLAYER="%s"; MY_RANK=%d; EXTRA_MEMBERS={%s}; %s' % (name, rank, others, setup))
+    V = {n: vp_client(n, r) for n, r in crew}
+    def count(t):
+        return len(list(t.keys()))
+    raidnet = Guild(*V.values())
+    raidnet.pump(25)
+    raiders = [n for n, _ in crew] + ['Member5', 'Member6']
+    group = '{' + ','.join('raid%d={"%s"}' % (i + 1, n) for i, n in enumerate(raiders)) + '}'
+    def everyone(code, skip=()):
+        for n, c in V.items():
+            if n not in skip:
+                c.run(code)
+    def clock(t):
+        everyone('CLOCK=%d' % t)
+    t0 = V['Thrag'].g.CLOCK + 60
+    clock(t0)
+    everyone('GROUP=%s; IN_RAID=true; IN_INSTANCE=true; INSTANCE={"Molten Core",409}' % group)
+    for c in V.values():
+        c.tick(21)
+    check('points: a report starts inside the raid', all(c.vc.vpData().cur is not None for c in V.values()))
+    check('points: nothing is sent inside', all(len(c.g.OUT) == 0 for c in V.values()))
+    def kill(enc, boss, t, skip=()):
+        clock(t)
+        for n, c in V.items():
+            if n not in skip:
+                c.tick(21)
+                c.fire('ENCOUNTER_END', enc, boss, 9, 40, 1)
+    kill(663, 'Lucifron', t0 + 900)
+    kill(664, 'Magmadar', t0 + 1800)
+    # Bolt drops: the others see him offline; his own client isn't running.
+    everyone('OFFLINE={Bolt=true}', skip=('Bolt',))
+    kill(665, 'Gehennas', t0 + 2700, skip=('Bolt',))
+    everyone('OFFLINE=nil', skip=('Bolt',))
+    kill(666, 'Garr', t0 + 3600)
+    V['Dunn'].run("""local r=VC_NS.vpData().mine[VC_NS.vpData().cur]
+      for i=1,8 do r.kills[#r.kills+1]={e=700+i,n="Fake "..i,t=CLOCK,w={VC_NS.myId()}} end
+      r.seen[VC_NS.myId()].m=r.seen[VC_NS.myId()].m+3*3600""")
+    clock(t0 + 4000)
+    for c in V.values():
+        c.tick(21)
+    # Everyone but Thrag leaves; Thrag is still inside (so hears nothing) for a while.
+    everyone('IN_INSTANCE=false; GROUP={}; IN_RAID=false', skip=('Thrag',))
+    raidnet.pump(200)
+    sent = [m for _, m in raidnet.delivered if m.startswith('P|R|')]
+    check('points: reports go out once people are out', len(sent) == 5, len(sent))
+    check('points: an officer still inside hears none of it', count(V['Thrag'].vc.vpData().inbox) == 0)
+    V['Thrag'].run('IN_INSTANCE=false; GROUP={}; IN_RAID=false')
+    raidnet.delivered.clear()
+    raidnet.pump(200)
+    inbox = V['Thrag'].vc.vpData().inbox
+    check('points: once out, the officer\'s hello brings the reports again', count(inbox) == 6, count(inbox))
+    check('points: not settled before the collection window', count(V['Thrag'].vc.vpData().raids) == 0)
+    raidnet.pump(340)
+    raids = list(V['Thrag'].vc.vpData().raids.values())
+    check('points: the officer settles the raid', len(raids) == 1, len(raids))
+    raid = raids[0] if raids else None
+    check('points: four bosses, the fake kills outvoted', raid is not None and len(raid.bosses) == 4, raid and list(raid.bosses.values()))
+    def vp(c, name):
+        s = c.vc.vpStanding(c.vc.nameId(name))
+        s = s[0] if isinstance(s, tuple) else s
+        return round(s.vp) if s else None
+    T_ = V['Thrag']
+    check('points: Mira earns on time + 4 bosses', vp(T_, 'Mira') == 70, vp(T_, 'Mira'))
+    check('points: Bolt misses the boss he was offline for', vp(T_, 'Bolt') == 55, vp(T_, 'Bolt'))
+    check('points: Dunn gets what he really earned', vp(T_, 'Dunn') == 70, vp(T_, 'Dunn'))
+    check('points: guildmates without the addon earn too', vp(T_, 'Member5') == 70, vp(T_, 'Member5'))
+    check('points: Dunn\'s report is flagged', raid is not None and any('Dunn' in f and '8 kills' in f for f in raid.fl.values()), raid and list(raid.fl.values()))
+    check('points: everyone has the same standings', all(vp(c, 'Bolt') == 55 and vp(c, 'Mira') == 70 for c in V.values()),
+          [vp(c, 'Bolt') for c in V.values()])
+    check('points: every report is marked settled', all(all(r.settled for r in c.vc.vpData().mine.values()) for c in V.values()))
+    check('points: flags reach officers only as raid notes', all(len(c.vc.vpData().raids[raid.key].fl) >= 1 for c in V.values()) if raid else False)
+    # Loot: only officers, cost suggested from item level and slot.
+    T_.run('ITEMS[16812]="Gloves of Prophecy"; ITEM_LEVELS[16812]={66,"INVTYPE_HAND"}')
+    V['Mira'].run('ITEMS[16812]="Gloves of Prophecy"; ITEM_LEVELS[16812]={66,"INVTYPE_HAND"}')
+    check('points: suggested cost from item level x slot', T_.vc.vpCost(16812)[0] == 50, T_.vc.vpCost(16812))
+    T_.g.SlashCmdList.VILLAGECOMMAND('points award Mira ' + T_.g.GetItemInfo(16812)[1])
+    raidnet.pump(5)
+    sM = V['Mira'].vc.vpStanding(V['Mira'].vc.nameId('Mira'))[0]
+    check('points: loot charges Loot Points, everywhere', sM is not None and round(sM.lp) == 100 and abs(sM.pr - 0.7) < 0.001, sM and (sM.lp, sM.pr))
+    V['Mira'].run('X,WHY=VC_NS.vpAward("Mira",nil,1)')
+    check('points: members can\'t award loot', V['Mira'].g.X is None and 'officers' in str(V['Mira'].g.WHY))
+    # A forged entry claimed to be Thrag's, sent by Dunn alone, is refused; it needs a second guildmate.
+    forged = 'L|zzz1~%s~%s~Thrag~v~500~Dunn~~Gift' % (T_.vc.to36(T_.g.CLOCK), T_.vc.to36(T_.g.CLOCK))
+    V['Mira'].vc.pointsMessage(forged, V['Mira'].vc.nameId('Dunn'))
+    check('points: a forged entry from one member is refused', vp(V['Mira'], 'Dunn') == 70)
+    T_.run('VC_NS.vpBench("Member9")')
+    raidnet.pump(5)
+    check('points: bench gets the bench share', vp(V['Kesh'], 'Member9') == 35, vp(V['Kesh'], 'Member9'))
+    T_.vc.vpUndo()
+    raidnet.pump(5)
+    check('points: undo takes the last change back', vp(V['Kesh'], 'Member9') is None)
+    # Rules change: everyone follows.
+    T_.g.SlashCmdList.VILLAGECOMMAND('points set decay 20')
+    raidnet.pump(5)
+    check('points: rules reach everyone', all(c.vc.vpRule('decay') == 20 for c in V.values()))
+    # A week later, points have faded the same everywhere.
+    clock(T_.g.CLOCK + 7 * 86400)
+    check('points: decay a week later', all(vp(c, 'Mira') == 56 for c in V.values()), [vp(c, 'Mira') for c in V.values()])
+    # A guildmate who wasn't online catches up.
+    S = vp_client('Sage', 3)
+    S.run('CLOCK=%d' % T_.g.CLOCK)
+    raidnet.clients.append(S)
+    raidnet.delivered.clear()
+    raidnet.pump(60)
+    check('points: a guildmate logging in later catches up', vp(S, 'Mira') == 56 and vp(S, 'Bolt') == vp(T_, 'Bolt') and S.vc.vpDigest() == T_.vc.vpDigest(),
+          (vp(S, 'Mira'), S.vc.vpDigest(), T_.vc.vpDigest()))
+    sizes = [len(m) for _, m in raidnet.delivered]
+    check('points: every message fits in 255 bytes', max(sizes) <= 255, max(sizes))
+    # No officer online: two members' copies have to agree before a newcomer takes them.
+    S2 = vp_client('Sage', 3)
+    S2.run('CLOCK=%d' % T_.g.CLOCK)
+    members_only = Guild(V['Mira'], V['Kesh'], V['Lyra'], S2)
+    members_only.pump(120)
+    check('points: with no officer on, two members vouch for the ledger', vp(S2, 'Mira') == 56 and S2.vc.vpDigest() == T_.vc.vpDigest(),
+          (vp(S2, 'Mira'), S2.vc.vpDigest(), T_.vc.vpDigest()))
+    # Two members' reports and no officer's: it waits for an officer to approve.
+    L, K = V['Lyra'], V['Kesh']
+    for c in (L, K):
+        c.run('IN_INSTANCE=true; IN_RAID=true; GROUP=%s; INSTANCE={"Onyxia\'s Lair",249}' % group)
+        c.tick(21)
+        c.fire('ENCOUNTER_END', 1084, 'Onyxia', 9, 40, 1)
+        c.run('CLOCK=CLOCK+1200')
+        c.tick(21)
+        c.run('IN_INSTANCE=false; GROUP={}; IN_RAID=false')
+    clock(max(L.g.CLOCK, K.g.CLOCK))
+    S.run('CLOCK=%d' % T_.g.CLOCK)
+    raidnet.pump(500)
+    pending = T_.vc.vpPending()
+    check('points: too few reports wait for an officer', len(pending) == 1 and count(T_.vc.vpData().raids) == 1, (len(pending), count(T_.vc.vpData().raids)))
+    T_.g.SlashCmdList.VILLAGECOMMAND('points approve')
+    raidnet.pump(5)
+    check('points: approved, it\'s settled', count(K.vc.vpData().raids) == 2 and vp(K, 'Kesh') > 56, vp(K, 'Kesh'))
+    for c, name in ((T_, 'officer'), (V['Mira'], 'member')):
+        try:
+            c.vc.selectTab('points')
+            c.tick(0.5)
+            check('points: draws the page for an ' + name if name == 'officer' else 'points: draws the page for a ' + name, True)
+        except Exception as e:  # noqa: BLE001
+            check('points: draws the page for ' + name, False, e)
+    T_.vc.openAwardDialog('Mira')
+    T_.vc.openAdjustDialog()
+    T_.vc.openAdjustDialog('bench')
+    T_.vc.openRulesDialog()
+    d = T_.vc.adjustDialog
+    d.who.SetText(d.who, 'Lyra'); d.amount.SetText(d.amount, '-5'); d.reason.SetText(d.reason, 'late')
+    d.mode = None
+    d.save.GetScript(d.save, 'OnClick')(d.save)
+    check('points: adjusting from the dialog works', not d.IsShown(d), d.error.GetText(d.error))
+    V['Mira'].g.SlashCmdList.VILLAGECOMMAND('points me')
+    check('points: /vc points me says your standing', any('Village Points' in str(p) and 'priority' in str(p) for p in V['Mira'].g.PRINTED.values()))
+    T_.g.SlashCmdList.VILLAGECOMMAND('status')
+    check('points: /vc status reports it', any('village points' in str(p) for p in T_.g.PRINTED.values()))
+    check('points: renown counts', isinstance(len(T_.vc.renown()), int))
+
+    # The Discord companion reads the same SavedVariables and gets the same standings.
+    import importlib.util
+    import json as _json
+    import subprocess
+    import tempfile
+    spec = importlib.util.spec_from_file_location('vc_discord', os.path.join(HERE, '..', 'companion', 'villagecommand_discord.py'))
+    bot = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(bot)
+    tmp = tempfile.mkdtemp()
+    sv = os.path.join(tmp, 'VillageCommand.lua')
+    with open(sv, 'w', encoding='utf-8') as f:
+        f.write('VillageCommandDB = ' + T_.g.VC_TEST_serialize(T_.g.VillageCommandDB) + '\n')
+    data = bot.load_saved_variables(sv)['VillageCommandDB']
+    gname = list(data['guilds'].keys())[0]
+    guild = data['guilds'][gname]
+    rows = bot.standings(guild, T_.g.CLOCK)
+    lua_rows = T_.vc.vpStandings()
+    same = len(rows) == len(lua_rows) and all(
+        r['name'] == l.name and abs(r['vp'] - l.vp) < 1e-6 and abs(r['lp'] - l.lp) < 1e-6 and r['raids'] == l.raids
+        for r, l in zip(rows, lua_rows.values()))
+    check('discord: standings match the addon exactly', same, [(r['name'], r['vp'], r['lp']) for r in rows[:4]])
+    ren = bot.renown(guild, T_.g.CLOCK)
+    lua_ren = T_.vc.renown()
+    check('discord: renown matches the addon', [(r['name'], r['score']) for r in ren] == [(x.name, x.score) for x in lua_ren.values()],
+          ([(r['name'], r['score']) for r in ren], [(x.name, x.score) for x in lua_ren.values()]))
+    msg = bot.build_standings_message(gname, guild, 25, T_.g.CLOCK)
+    check('discord: standings message lists the guild', 'Mira' in msg['embeds'][0]['description'] and len(msg['embeds'][0]['description']) < 4000)
+    raid_msgs = [bot.build_raid_message(guild, r) for r in guild['vp']['raids'].values()]
+    check('discord: raid message names the bosses and who earned what',
+          any('Lucifron' in m['embeds'][0]['description'] and 'Mira: +70' in m['embeds'][0]['description'] for m in raid_msgs),
+          [m['embeds'][0]['description'] for m in raid_msgs])
+    loot = [e for e in guild['vp']['led'].values() if e.get('k') == 'l']
+    check('discord: loot message', loot and 'Gloves of Prophecy' in bot.build_loot_message(loot[0])['content'])
+    out = subprocess.run([sys.executable, os.path.join(HERE, '..', 'companion', 'villagecommand_discord.py'), '--savedvars', sv,
+                          '--dry-run', '--backfill'], capture_output=True, text=True, cwd=tmp)
+    check('discord: --dry-run prints the messages', out.returncode == 0 and 'Village Points' in out.stdout and 'Molten Core' in out.stdout, out.stderr[-500:])
+    exp = os.path.join(tmp, 'exports')
+    out = subprocess.run([sys.executable, os.path.join(HERE, '..', 'companion', 'villagecommand_discord.py'), '--savedvars', sv,
+                          '--export', exp], capture_output=True, text=True, cwd=tmp)
+    check('discord: --export writes CSV files', out.returncode == 0 and len(os.listdir(exp)) == 3, out.stderr[-500:])
 
     print()
     if failures:

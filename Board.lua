@@ -266,7 +266,7 @@ function VC.takeAttendance(id,quiet)
   for _,mid in ipairs(list) do
     if not ev.att[mid] then ev.att[mid]=VC.byId[mid].short; added[#added+1]=mid end
   end
-  ev.attU=now()
+  ev.attU=now(); ev.attBy=myName()
   if #added>0 then VC.sendAttendance(ev,added) end
   if not quiet then log('Attendance for '..ev.title..': '..#list..' guildmates in your group'..(#added<#list and (', '..#added..' new') or '')..'.',true) end
   VC.requestRedraw()
@@ -463,7 +463,8 @@ end
 function VC.sendAttendance(ev,ids)
   local pieces={}
   for _,id in ipairs(ids) do if ev.att[id] then pieces[#pieces+1]=ev.att[id] end end
-  packed('A|'..ev.id..'~'..T(ev.attU or now())..'~'..VC.boardMyName(),pieces)
+  -- Named after whoever took it, not whoever passes it on: only the leader's or a trusted rank's is taken.
+  packed('A|'..ev.id..'~'..T(ev.attU or now())..'~'..(ev.attBy or VC.boardMyName()),pieces)
 end
 function VC.sendClaims(bo,ids)
   local pieces={}
@@ -627,7 +628,7 @@ function VC.mergeAttendance(rest,senderId)
     local aid=VC.nameId(name)
     if aid and not ev.att[aid] then ev.att[aid]=(VC.byId[aid] and VC.byId[aid].short) or name; changed=true end
   end
-  if changed then ev.attU=math.max(ev.attU or 0,u) end
+  if changed then ev.attU=math.max(ev.attU or 0,u); ev.attBy=ev.attBy or cleanText(recorder,40) end
   return changed
 end
 function VC.mergeBountyRecord(rest,senderId)

@@ -9,6 +9,7 @@ manual-changelog:
 ignore:
   - docs
   - tests
+  - companion
   - README.md
   - CURSEFORGE.md
   - .github

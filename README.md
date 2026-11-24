@@ -64,6 +64,42 @@ Events and bounties go out to guildmates running Village Command the moment they
 
 **Who can change what:** only the leader or poster, or the trusted ranks (Settings > *Trust shared history from*), can edit, cancel or close an event or bounty. Signups and hunts only ever change their own person. Each person can have 6 upcoming events and 6 open bounties (the trusted ranks 25). Addon messages can't be signed, so a guildmate with a modified addon could still relay a fake change. Village Command limits that: when it sees a different copy of one of *your* events, bounties, signups or hunts, it sends yours again, so the real one wins whenever you're online.
 
+### Village Points: raid points and loot priority
+The **Village Points** tab keeps a points system for raids and loot that the whole guild can see.
+
+- **Earn Village Points by raiding:** 10 for being on time and 15 for each boss kill you're there for, by default. Officers can add points for each hour in the raid too.
+- **Loot costs Loot Points.** An officer awards it (**Award loot...**, or `/vc points award Mira` and shift-click the item). The cost is suggested from the item's level and slot. Everyone starts with 50 Loot Points, so a newcomer with one raid isn't first in line.
+- **Priority = Village Points ÷ Loot Points.** The highest goes first. Both fade 10% a week, so recent raiding counts most. Points older than 26 weeks drop off.
+- **Standings** list everyone with their points, priority and raids in the last 30 days. Hover a name to see each change: when, how many, why and who made it. Member tooltips show it too.
+- **Officers** can award loot, adjust points by hand with a reason, give **bench** players a share of what a raid earned (half by default), undo their last change, and set the **Rules**. Every value above is a rule, and everyone's standings follow a change at once.
+
+**How a raid is counted.** Addons can't talk inside instances, so nothing is sent during the raid. Each player's Village Command keeps a report of what it saw:
+- when they went in;
+- which guildmates were in the raid, online and in the same zone, and for how long;
+- every boss kill, and who was there for it.
+
+A raid counts once 5 guildmates are in it together. Once a player is out, their report goes to the officers. An officer's Village Command waits 5 minutes for the others, then settles the raid:
+- **Yes/no questions** go by majority vote, with an officer breaking ties. For example: was Gehennas killed? Was Bolt there for it?
+- **Numbers** use the median, which ignores outliers. For example: when did someone arrive, and how long did they stay?
+- **Quorum:** a raid needs reports from 3 clients or from one officer. With fewer, it waits on the tab for an officer to **approve** it.
+- **Late reports:** reports that arrive within half an hour are counted in and the raid is settled again.
+- **Officers still inside:** if an officer is still in the instance when the others leave, every unsettled report is sent again when that officer comes out.
+- **Flags:** reports that disagree with the result are flagged for officers. For example, a client claiming kills nobody else saw.
+
+Guildmates in the raid without the addon still earn points, because the others' reports include them. A player who disconnects misses the bosses killed while they were offline.
+
+**Trust.** Only officers can award loot, change points or change the rules. Officers are the ranks from Settings > *Trust shared history from*. Each report counts as one vote from the player who sent it, because the game says who sent each message. A modified addon can't add points: its kills and times are outvoted, and it can't settle a raid. Guildmates who were offline catch up at login. Only the weeks that differ are sent, and a copy counts if it comes from an officer, or from two guildmates who agree.
+
+**Why not officer notes?** On WoW Forever, only the game's own guild window can change officer notes. A `/vc` command can't either, so Village Points keeps its own shared ledger instead.
+
+### Renown
+Renown is a community score that is never used for loot:
+- 3 for each event you attended (last 60 days);
+- 5 for each bounty you earned (last 90 days);
+- 1 for each level you gained (last 30 days).
+
+The top 10 are on the Village Points tab, and the Discord companion shows the top 5.
+
 ### Shared history
 Guildmates running Village Command compare what they've seen when they log in, so **days in the guild**, level history and the activity feed cover everyone's playtime, not just yours. It's light: a short hello at login, and only when histories differ, a few dozen small messages at the game's pace (about 50 bytes per member). Joins, leaves, rank changes and earlier first-seen dates are only taken from trusted ranks (**Settings > Trust shared history from**), or, for first-seen dates, from two guildmates who agree. Online-by-hour graphs stay your own. Turn sharing off in Settings.
 
@@ -99,15 +135,49 @@ The **GuildForge** and **Un-Ninja Bank** buttons at the top of the window open t
 | Command | What it does |
 | --- | --- |
 | `/vc` | Open or close the window (also `/village`, `/villagecommand`) |
-| `/vc roster`, `events`, `bounties`, `promotions`, `progress`, `stats`, `forge`, `bank` | Open a page |
+| `/vc roster`, `events`, `bounties`, `points`, `promotions`, `progress`, `stats`, `forge`, `bank` | Open a page |
+| `/vc points me` (or a name) | Your Village Points, Loot Points, priority and place |
+| `/vc points award Name [item] [cost]` | Officers: charge Loot Points for an item (shift-click it in; the cost is suggested) |
+| `/vc points add Name 10 reason` | Officers: add (or with `-10`, take away) Village Points |
+| `/vc points bench Name` | Officers: the bench share of the latest raid |
+| `/vc points undo` | Officers: take back your last change |
+| `/vc points cost [item]` | The suggested Loot Points for an item |
+| `/vc points rules`, `/vc points set perBoss 20` | See the rules; officers change one |
+| `/vc points approve` | Officers: settle raids that had too few reports |
 | `/vc online` | List who's online in chat |
-| `/vc sync` | Compare history, events and bounties with guildmates now |
+| `/vc sync` | Compare history, events, bounties and Village Points with guildmates now |
 | `/vc settings` | Open settings |
 | `/vc cancel` | Stop a mass change part way |
 | `/vc status` | Show what your rank is allowed to do, and anything the game blocks |
 | `/vc unblock` | Try actions the game blocked before again (after a patch) |
 | `/vc minimap` | Show or hide the minimap button |
 | `/vc quiet` | Only print messages for things you did |
+
+## Discord companion
+
+`companion/villagecommand_discord.py` puts Village Points on Discord. It works like the Un-Ninja Bank companion: WoW addons can't reach the internet, and SavedVariables are only written when you **log out or `/reload`**. The script reads that file and posts through Discord webhooks:
+
+- **Standings:** one message, kept up to date. It shows everyone's Village Points, Loot Points, priority and raids, worked out exactly as the addon does, plus the top of the Renown board.
+- **Raids:** each settled raid is posted once, with its bosses and who earned what. The post is edited if officers settle it again.
+- **Loot:** each award gets a post ("🎁 Mira received Gloves of Prophecy for 50 Loot Points"), struck through if it's undone.
+- **Flags:** optional, sent to an officers' channel (`officer_webhook`).
+
+Every guildmate running the addon has the whole ledger, so anyone can run the script on any PC.
+
+1. In Discord: channel settings > Integrations > Webhooks > New Webhook, then copy its URL.
+2. Copy `companion/villagecommand.example.json` to `companion/villagecommand.json` and paste the URL in. That file is git-ignored. Keep the URL private, because anyone who has it can post to the channel.
+   - For separate channels, set `raids_webhook` and `loot_webhook`.
+   - `top` sets how many places the standings show.
+3. Check what it would post:
+   ```bash
+   python3 companion/villagecommand_discord.py --dry-run
+   ```
+4. Then leave it running:
+   ```bash
+   python3 companion/villagecommand_discord.py --watch
+   ```
+
+Python 3.8+ with nothing to install. The first run only takes note of raids and loot already recorded, so it doesn't flood the channel; `--backfill` posts them. `--export exports` writes the standings, every points change and the raids to CSV files.
 
 ## Installing
 
@@ -119,7 +189,7 @@ The addon folder must be named `VillageCommand`. Copy or link this repository in
 
 ## Tests
 
-`tests/run_tests.py` runs the addon in a stand-in WoW environment with a simulated guild (WoW's Lua 5.1, through lupa): loading, every page, filters, mass promote / demote / set rank, mass notes, progression tracking, the GuildForge and Un-Ninja Bank pages, and WoW Forever names.
+`tests/run_tests.py` runs the addon in a stand-in WoW environment with a simulated guild (WoW's Lua 5.1, through lupa): loading, every page, filters, mass promote / demote / set rank, mass notes, progression tracking, the GuildForge and Un-Ninja Bank pages, WoW Forever names, and a whole raid night of Village Points (six clients, a disconnect, a tampered report, loot, decay, catch-up), checked against the Discord companion's numbers.
 
 ```bash
 python3 -m venv .venv && .venv/bin/pip install lupa && .venv/bin/python tests/run_tests.py

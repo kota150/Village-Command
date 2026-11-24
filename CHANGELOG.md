@@ -2,6 +2,34 @@
 
 All notable changes to Village Command are listed here.
 
+## [1.3.0] - 2026-11-23
+
+### Added
+- **Village Points tab: raid points and loot priority.**
+  - Raiding earns Village Points: on time, each boss kill, and optionally each hour.
+  - Loot costs Loot Points, which officers award with a cost suggested from the item's level and slot.
+  - Priority is Village Points ÷ Loot Points, with a base so newcomers don't jump the queue.
+  - Both fade by a set share each week, worked out from the dates so every copy agrees.
+  - Standings show everyone's points, priority and raids, and each person's history on hover.
+  - Officers can award loot, adjust points with a reason, bench, undo, and change the rules. Everyone's standings follow a rule change.
+  - Also `/vc points`.
+- **Raids are counted from everyone's notes.** Nothing is sent inside an instance. Each Village Command keeps a report of who was in the raid (online, same zone) and for how long, and every boss kill with who was there. Once you're out, it goes to the officers.
+  - An officer's Village Command settles the raid. Yes/no questions go by majority vote, numbers use the median, and the raid needs 3 reports or an officer's.
+  - Late reports within half an hour are counted in.
+  - Reports that disagree, such as kills nobody else saw, are flagged for officers.
+  - Unsettled reports are sent again when an officer comes out of the instance.
+  - Guildmates without the addon earn points from the others' reports.
+- **Renown**: a community score from events attended, bounties earned and levels gained. It's never used for loot.
+- **Discord companion** (`companion/villagecommand_discord.py`, in the GitHub repository only):
+  - keeps a standings message up to date, with the same numbers as the addon;
+  - posts each raid and each loot award;
+  - sends flags to an officers' channel;
+  - exports CSV files.
+- Member tooltips show Village Points, Loot Points and priority. `/vc status` and `/vc sync` cover Village Points too.
+
+### Fixed
+- Attendance passed on by a guildmate who isn't the leader or an officer is no longer refused. It keeps the name of whoever took it. Before, a guildmate logging in later could miss an event's attendance.
+
 ## [1.2.1] - 2026-11-19
 
 ### Fixed
