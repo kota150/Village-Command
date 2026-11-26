@@ -2,7 +2,7 @@
 
 All notable changes to Village Command are listed here.
 
-## [1.4.0] - 2026-11-26
+## [1.3.1] - 2026-11-26
 
 ### Added
 - **Top recruiters** on the Progression page: who brought in the guildmates who are still here.
