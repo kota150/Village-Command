@@ -113,7 +113,14 @@ Days in the guild count from when Village Command first saw each member, on your
 ![The Promotions tab: promotion rules with who's ready, and Turn off, Edit, Delete and Promote helper for each](docs/screenshots/promotions.webp)
 
 ### Progression
-Milestones (roster size, members at the level cap, average level, professions covered), this week's levels gained, joins, leaves and promotions, **top climbers** over 7 or 30 days, and an activity feed of joins, leaves, level milestones and rank changes.
+Milestones (roster size, members at the level cap, average level, professions covered), this week's levels gained, joins, leaves and promotions, **top climbers** over 7 or 30 days, **top recruiters**, and an activity feed of joins, leaves, level milestones and rank changes.
+
+### Top recruiters
+Who invited whom comes from the game's **guild event log**, the server's own record of invites and joins. It names both people, so it can't be faked or guessed wrong. A recruit counts for whoever invited them **while they're in the guild**: leaving takes them off the board, and someone who comes back counts for whoever invited them back. Invites that were never accepted don't count.
+
+The log only holds the last 100 or so events, so every Village Command reads it every few minutes and keeps what it finds. Guildmates running it share the list, so it outlives the log and covers the days you're not online. A list from a trusted rank is taken on its word; anyone else's needs a second guildmate's to agree. Recruits from before anyone ran Village Command can't be counted, apart from what's still in the log.
+
+Hover a recruiter to see who they brought in. Member tooltips say who invited them. Also `/vc recruits`, or `/vc recruits Name`.
 
 ### Fun Stats
 Peak online, busiest hour, today's hot spot, the rarest class, and superlatives: **Ding champion**, **Night owl**, **Early bird**, **Always around**, **Fresh blood**, **Wanderer**, **Alt army** (from "Alt of ..." notes), **Blank slates** and **Achievement hunter** (Retail). Plus online-by-hour, class, level and rank charts.
@@ -144,8 +151,9 @@ The **GuildForge** and **Un-Ninja Bank** buttons at the top of the window open t
 | `/vc points cost [item]` | The suggested Loot Points for an item |
 | `/vc points rules`, `/vc points set perBoss 20` | See the rules; officers change one |
 | `/vc points approve` | Officers: settle raids that had too few reports |
+| `/vc recruits` (or a name) | The top recruiters, or who invited someone and who they brought in |
 | `/vc online` | List who's online in chat |
-| `/vc sync` | Compare history, events, bounties and Village Points with guildmates now |
+| `/vc sync` | Compare history, events, bounties, Village Points and recruits with guildmates now |
 | `/vc settings` | Open settings |
 | `/vc cancel` | Stop a mass change part way |
 | `/vc status` | Show what your rank is allowed to do, and anything the game blocks |
@@ -189,7 +197,7 @@ The addon folder must be named `VillageCommand`. Copy or link this repository in
 
 ## Tests
 
-`tests/run_tests.py` runs the addon in a stand-in WoW environment with a simulated guild (WoW's Lua 5.1, through lupa): loading, every page, filters, mass promote / demote / set rank, mass notes, progression tracking, the GuildForge and Un-Ninja Bank pages, WoW Forever names, and a whole raid night of Village Points (six clients, a disconnect, a tampered report, loot, decay, catch-up), checked against the Discord companion's numbers.
+`tests/run_tests.py` runs the addon in a stand-in WoW environment with a simulated guild (WoW's Lua 5.1, through lupa): loading, every page, filters, mass promote / demote / set rank, mass notes, progression tracking, the GuildForge and Un-Ninja Bank pages, WoW Forever names, and a whole raid night of Village Points (six clients, a disconnect, a tampered report, loot, decay, catch-up), recruits read from the guild event log and shared, checked against the Discord companion's numbers.
 
 ```bash
 python3 -m venv .venv && .venv/bin/pip install lupa && .venv/bin/python tests/run_tests.py

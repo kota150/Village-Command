@@ -1188,6 +1188,10 @@ function VC.onSyncMessage(msg,sender)
       sy.dumpsTo[senderId]={digest=mine,at=now()}
       later(1+math.random()*3,VC.sendHistory)
     end
+  elseif kind=='I' and VC.recruitMessage then
+    -- Who invited whom (Recruits.lua): I|<kind>|...
+    local ok,err=pcall(VC.recruitMessage,rest,senderId)
+    if not ok then VC.recruitSync.lastError=tostring(err) end
   elseif kind=='P' and VC.pointsMessage then
     -- Village Points (Points.lua): P|<kind>|...
     local ok,err=pcall(VC.pointsMessage,rest,senderId)
@@ -2330,6 +2334,7 @@ function VC.memberTooltip(owner,m)
   if readyBy[m.id] then GameTooltip:AddLine('Ready for promotion to '..(VC.rankNames()[readyBy[m.id].to] or '?'),1,.82,0) end
   if VC.boardMemberLines then VC.boardMemberLines(GameTooltip,m) end
   if VC.pointsMemberLines then VC.pointsMemberLines(GameTooltip,m) end
+  if VC.recruitMemberLines then VC.recruitMemberLines(GameTooltip,m) end
   if m.points then GameTooltip:AddLine(m.points..' achievement points',.7,.7,.7) end
   GameTooltip:AddLine(' ')
   GameTooltip:AddLine('|cffffd100Click|r  open in the roster',.7,.7,.7)
@@ -2546,9 +2551,38 @@ VC.pages.progress=function()
       function(self) VC.memberTooltip(self,c.m) end)
   end
   if #climbers==0 then VC.note('|cff909090No level-ups seen yet. Village Command records levels as it sees the roster, so this fills in over the coming days.|r') end
+  VC.recruitSection()
   VC.section('Activity feed')
   stripe=0
   VC.feed(40)
+end
+-- Top recruiters: who brought in the guildmates who are still here, read from the guild's event log.
+function VC.recruitSection()
+  if not VC.recruiters then return end
+  VC.section('Top recruiters','guildmates still here who joined on their invite')
+  stripe=0
+  local list=VC.recruiters()
+  local best=list[1] and list[1].n or 1
+  for i=1,math.min(#list,10) do
+    local e=list[i]
+    VC.bar(i..'. '..(e.m and VC.colorName(e.m) or ('|cffc0c0c0'..e.name..'|r')),e.n,best,tostring(e.n),
+      e.m and {VC.classColor(e.m.classFile)} or {.55,.75,1},nil,e.month>0 and ('+'..e.month..' in the last 30 days') or nil,
+      function(self)
+        GameTooltip:SetOwner(self,'ANCHOR_RIGHT')
+        GameTooltip:AddLine(e.name..'\'s recruits',1,.82,0)
+        for j=1,math.min(15,#e.list) do
+          local x=e.list[j]
+          GameTooltip:AddDoubleLine(VC.colorName(x.m),'joined '..VC.agoText(now()-x.t),1,1,1,.6,.6,.6)
+        end
+        if #e.list>15 then GameTooltip:AddLine('+'..(#e.list-15)..' more',.6,.6,.6) end
+        if not e.m then GameTooltip:AddLine('No longer in the guild',.6,.6,.6) end
+        GameTooltip:Show()
+      end)
+  end
+  if #list==0 then
+    VC.note('|cff909090Nobody yet. Village Command reads the guild\'s event log for who invited whom and shares it with guildmates running it. '
+      ..'The log only holds the last 100 or so events, so recruits from before that can\'t be counted. Someone who leaves comes off the board.|r')
+  end
 end
 VC.pages.stats=function()
   local s=VC.stats()
@@ -3911,6 +3945,7 @@ SlashCmdList.VILLAGECOMMAND=function(message)
     bounties='bounties',bounty='bounties',board='bounties',vp='points',standings='points',loot='points'}
   if command=='' then VC.toggle()
   elseif command=='points' or command=='villagepoints' then VC.pointsCommand(arg)
+  elseif command=='recruits' or command=='recruiters' or command=='recruit' then VC.recruitsCommand(arg)
   elseif pages[command] then VC.open(pages[command])
   elseif command=='online' or command=='who' then
     local online={}
@@ -3930,7 +3965,8 @@ SlashCmdList.VILLAGECOMMAND=function(message)
       VC.sync.lastDump=0; VC.sayHello()
       if VC.boardHello then VC.boardSync.lastDump=0; VC.boardHello() end
       if VC.pointsHello then VC.vpSync.lastDump=0; VC.pointsHello() end
-      log('Asked guildmates running Village Command to compare history, events, bounties and Village Points.',true)
+      if VC.recruitHello then VC.recruitSync.lastDump=0; VC.queryGuildLog(); VC.recruitHello() end
+      log('Asked guildmates running Village Command to compare history, events, bounties, Village Points and recruits.',true)
     end
   elseif command=='unblock' then
     if VillageCommandDB.blocked then VillageCommandDB.blocked[VC.flavor]=nil end
@@ -3953,13 +3989,14 @@ SlashCmdList.VILLAGECOMMAND=function(message)
       VC.syncOn() and 'on' or 'off',sy.sent,sy.received,sy.merged,sy.rejected,#sy.out,VC.digest(),sy.lastError and ('; last error: '..sy.lastError) or ''),true)
     if VC.boardStatus then log(VC.boardStatus(),true) end
     if VC.pointsStatus then log(VC.pointsStatus(),true) end
+    if VC.recruitStatus then log(VC.recruitStatus(),true) end
     log(string.format('can promote=%s demote=%s public notes=%s officer notes=%s view officer notes=%s; GuildForge=%s; Un-Ninja Bank=%s',
       tostring(p.promote),tostring(p.demote),tostring(p.publicNote),tostring(p.officerNote),tostring(p.viewOfficer),tostring(VC.hasForge()),tostring(VC.bankAPI()~=nil)),true)
   elseif command=='quiet' then
     VillageCommandDB.settings.quiet=not VillageCommandDB.settings.quiet
     log('Quiet mode '..(VillageCommandDB.settings.quiet and 'on' or 'off')..'.',true)
   else
-    log('/vc opens the window. Pages: /vc roster, events, bounties, points, progress, stats, forge, bank. /vc points help: Village Points commands. Also: online lists who\'s on; settings; minimap toggles the button; cancel stops a mass change; sync compares history with guildmates now; status shows what your rank can do and the sync counters; unblock retries actions the game blocked before; blocked lists what the game blocked this session; quiet toggles chat messages.',true)
+    log('/vc opens the window. Pages: /vc roster, events, bounties, points, progress, stats, forge, bank. /vc points help: Village Points commands. /vc recruits: the top recruiters (or /vc recruits Name). Also: online lists who\'s on; settings; minimap toggles the button; cancel stops a mass change; sync compares history with guildmates now; status shows what your rank can do and the sync counters; unblock retries actions the game blocked before; blocked lists what the game blocked this session; quiet toggles chat messages.',true)
   end
 end
 
@@ -4033,6 +4070,7 @@ frame:SetScript('OnEvent',function(_,event,...)
     later(12,VC.sayHello)
     if VC.boardLogin then VC.boardLogin() end
     if VC.pointsLogin then VC.pointsLogin() end
+    if VC.recruitLogin then VC.recruitLogin() end
     log('v'..VERSION..' loaded. Click the guild tabard on the minimap or type /vc to open.')
   elseif not VC.ready then return
   elseif event=='GUILD_ROSTER_UPDATE' or event=='PLAYER_GUILD_UPDATE' or event=='GUILD_RANKS_UPDATE' or event=='PLAYER_ENTERING_WORLD' then
@@ -4062,6 +4100,7 @@ frame:SetScript('OnUpdate',function(_,elapsed)
   VC.syncDrain(elapsed)
   if VC.boardTick then VC.boardTick(elapsed) end
   if VC.pointsTick then VC.pointsTick(elapsed) end
+  if VC.recruitTick then VC.recruitTick(elapsed) end
   -- Roster updates come in bursts; read it at most every second and a half.
   sinceRead=sinceRead+elapsed
   if rosterDirty and sinceRead>=1.5 then

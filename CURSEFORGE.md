@@ -87,6 +87,7 @@ It asks first and names who's affected, sends changes one at a time so the serve
 - **Milestones:** roster size, members at the level cap, average level, and professions covered.
 - **This week:** levels gained, new members and leavers, promotions, and the most online at once.
 - **Top climbers** over 7 or 30 days, and an **activity feed** of joins, leaves, level milestones and rank changes.
+- **Top recruiters:** who brought in the guildmates who are still here, read from the game's own guild event log and shared between guildmates so it outlives the log. Leaving takes a recruit off the board. Member tooltips say who invited them, and `/vc recruits` lists the board in chat.
 
 ## Fun stats
 

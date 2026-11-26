@@ -2,6 +2,16 @@
 
 All notable changes to Village Command are listed here.
 
+## [1.4.0] - 2026-11-26
+
+### Added
+- **Top recruiters** on the Progression page: who brought in the guildmates who are still here.
+  - Read from the game's guild event log, the server's own record of who invited whom, so it can't be faked.
+  - A recruit counts while they're in the guild. Leaving takes them off the board, and someone who comes back counts for whoever invited them back. Invites that were never accepted don't count.
+  - The log only holds the last 100 or so events, so Village Command reads it every few minutes and shares what it finds with guildmates. A trusted rank's list is taken on its word; anyone else's needs a second guildmate's to agree.
+  - Hover a recruiter to see who they brought in. Member tooltips say who invited them.
+  - Also `/vc recruits`, or `/vc recruits Name`. `/vc status` and `/vc sync` cover recruits too.
+
 ## [1.3.0] - 2026-11-23
 
 ### Added

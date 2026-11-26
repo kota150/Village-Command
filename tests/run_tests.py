@@ -644,7 +644,7 @@ def main():
     before = len(net.delivered)
     B.g.SlashCmdList.VILLAGECOMMAND('sync')
     net.pump(15)
-    check('sync: once in step, a hello costs one message (and one each for events and bounties, and Village Points)', len(net.delivered) - before == 3, net.delivered[before:])
+    check('sync: once in step, a hello costs one message (and one each for events and bounties, Village Points and recruits)', len(net.delivered) - before == 4, net.delivered[before:])
 
     # What B knew that A didn't goes back to A
     B.run('''
@@ -696,13 +696,13 @@ def main():
     F.run('IN_INSTANCE=true; IN_COMBAT=true; C_ChatInfo.InChatMessagingLockdown=function() return true end')
     F.g.SlashCmdList.VILLAGECOMMAND('sync')
     F.tick(5)
-    check('sync: held while the game locks addon chat', len(F.g.OUT) == 0 and len(F.vc.sync.out) == 3, len(F.vc.sync.out))
+    check('sync: held while the game locks addon chat', len(F.g.OUT) == 0 and len(F.vc.sync.out) == 4, len(F.vc.sync.out))
     F.run('IN_COMBAT=false')
     F.tick(2)
     check('sync: still held in the instance while the game reports the lockdown', len(F.g.OUT) == 0)
     F.run('IN_INSTANCE=false')
     F.tick(2)
-    check('sync: and sent once you\'re out', len(F.g.OUT) == 3, len(F.g.OUT))
+    check('sync: and sent once you\'re out', len(F.g.OUT) == 4, len(F.g.OUT))
     for x in (A, B):
         x.g.SlashCmdList.VILLAGECOMMAND('status')
     check('sync: /vc status reports it', any('history sync on' in s for s in A.g.PRINTED.values()))
@@ -1306,6 +1306,82 @@ def main():
     T_.g.SlashCmdList.VILLAGECOMMAND('status')
     check('points: /vc status reports it', any('village points' in str(p) for p in T_.g.PRINTED.values()))
     check('points: renown counts', isinstance(len(T_.vc.renown()), int))
+
+    # Recruitment: who invited whom, from the guild event log ----------------------------------------
+    rcrew = [('Thrag', 1), ('Mira', 3), ('Kesh', 3), ('Sage', 3)]
+    def r_client(name, rank, setup=''):
+        others = ','.join('{"%s",%d,60}' % (n, r) for n, r in rcrew if n != name)
+        return Client('PLAYER="%s"; MY_RANK=%d; EXTRA_MEMBERS={%s}; %s' % (name, rank, others, setup))
+    LOG = """GUILD_LOG={
+      {"invite","Kesh","Member23",100},
+      {"invite","Thrag","Member24",80},{"join","Member24",nil,80},{"quit","Member24",nil,70},
+      {"invite","Kesh","Member24",60},{"join","Member24",nil,60},
+      {"invite","Thrag","Member20",50},{"join","Member20",nil,50},
+      {"invite","Mira","Member21",30},{"join","Member21",nil,30},{"promote","Thrag","Member21",29},
+      {"invite","Thrag","Gone",20},{"join","Gone",nil,20},
+      {"invite","Mira","Member22",10},{"join","Member22",nil,10},
+      {"invite","Mira","Nobody",5}}"""
+    RT = r_client('Thrag', 1, LOG)
+    RM = r_client('Mira', 3, LOG + '; GUILD_LOG_NEWEST_FIRST=true')
+    RK = r_client('Kesh', 3)
+    for c in (RT, RM, RK):
+        c.tick(30)
+    def board(c):
+        return [(e.name, e.n) for e in c.vc.recruiters().values()]
+    check('recruits: the log is asked for', RT.g.LOG_QUERIES >= 1)
+    check('recruits: counted from the guild log', board(RT) == [('Mira', 2), ('Kesh', 1), ('Thrag', 1)], board(RT))
+    check('recruits: the same whichever end of the log is newest', board(RM) == board(RT), board(RM))
+    check('recruits: someone who came back counts for whoever invited them back', RT.vc.invitedBy(RT.vc.nameId('Member24'))[0] == 'Kesh')
+    check('recruits: someone no longer in the guild isn\'t counted', RT.vc.recruitData().by[RT.vc.nameId('Gone')] is None)
+    check('recruits: an invite with no join doesn\'t count', RT.vc.recruitData().by[RT.vc.nameId('Member23')] is None)
+    # Reading the same log again changes nothing.
+    check('recruits: reading the log again changes nothing', RT.vc.readGuildLog() == 0)
+    # An invite that has left the log by the time the join is read still counts.
+    RT.run('table.insert(GUILD_LOG,{"invite","Thrag","Member25",2})')
+    RT.fire('GUILD_EVENT_LOG_UPDATE')
+    RT.run('table.remove(GUILD_LOG); GUILD_LOG[#GUILD_LOG+1]={"join","Member25",nil,1}')
+    RT.fire('GUILD_EVENT_LOG_UPDATE')
+    check('recruits: the invite is remembered after it leaves the log', RT.vc.invitedBy(RT.vc.nameId('Member25'))[0] == 'Thrag', board(RT))
+    # Sharing: Kesh has no log of his own (logged in later), and catches up from Thrag.
+    rnet = Guild(RT, RM, RK)
+    rnet.pump(90)
+    check('recruits: a guildmate catches up from an officer', board(RK) == board(RT) and RK.vc.recruitDigest() == RT.vc.recruitDigest(), (board(RK), board(RT)))
+    # A member's claim on its own isn't taken; a second guildmate's makes it count.
+    RS = r_client('Sage', 3)
+    RS.tick(30)
+    piece = 'D|%s~%s~Kesh~%s' % (RS.vc.nameId('Member26'), RS.vc.nameId('Kesh'), RS.vc.to36(RS.g.CLOCK - 3600))
+    RS.vc.recruitMessage(piece, RS.vc.nameId('Kesh'))
+    check('recruits: one member\'s claim isn\'t taken', RS.vc.invitedBy(RS.vc.nameId('Member26')) is None)
+    RS.vc.recruitMessage(piece, RS.vc.nameId('Mira'))
+    check('recruits: two guildmates agreeing is', RS.vc.invitedBy(RS.vc.nameId('Member26'))[0] == 'Kesh')
+    # Leaving takes them off the board, everywhere.
+    for c in (RT, RM, RK):
+        c.run('for i,m in ipairs(ROSTER) do if m.name:find("^Member22") then table.remove(ROSTER,i) break end end')
+        c.roster_update()
+    check('recruits: leaving takes them off the board', all(dict(board(c)).get('Mira') == 1 for c in (RT, RM, RK)), [board(c) for c in (RT, RM, RK)])
+    RT.run('table.remove(GUILD_LOG,1)')
+    RT.fire('GUILD_EVENT_LOG_UPDATE')
+    check('recruits: and the log doesn\'t bring them back', dict(board(RT)).get('Mira') == 1)
+    # The page, the tooltip and /vc recruits.
+    RT.run('VC_NS.open("progress")')
+    RT.tick(1)
+    lines = []
+    RT.run('local tip={AddLine=function(_,t) RLINES[#RLINES+1]=t end}; RLINES={}; VC_NS.recruitMemberLines(tip,VC_NS.byId[VC_NS.nameId("Member21")]); VC_NS.recruitMemberLines(tip,VC_NS.byId[VC_NS.nameId("Mira")])')
+    lines = list(RT.g.RLINES.values())
+    check('recruits: tooltips say who invited them, and how many they brought in', any('Invited by Mira' in l for l in lines) and any('Recruited 1 guildmate' in l for l in lines), lines)
+    RT.g.SlashCmdList.VILLAGECOMMAND('recruits')
+    check('recruits: /vc recruits lists the top recruiters', any('Top recruiters' in str(p) for p in RT.g.PRINTED.values()))
+    RT.g.SlashCmdList.VILLAGECOMMAND('recruits Member20')
+    check('recruits: /vc recruits Name says who invited them', any("Member20 joined on Thrag's invite" in str(p) for p in RT.g.PRINTED.values()))
+    RT.g.SlashCmdList.VILLAGECOMMAND('status')
+    check('recruits: /vc status reports it', any('recruits:' in str(p) for p in RT.g.PRINTED.values()))
+    E = Client()
+    E.run('GetNumGuildEvents=nil; GetGuildEventInfo=nil')
+    E.tick(30)
+    E.vc.readGuildLog()
+    E.run('VC_NS.open("progress")')
+    E.tick(1)
+    check('recruits: no guild log in the game is fine', len(E.vc.recruiters()) == 0)
 
     # The Discord companion reads the same SavedVariables and gets the same standings.
     import importlib.util

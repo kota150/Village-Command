@@ -53,7 +53,7 @@ local function newObj(kind,name,parent)
   end})
 end
 KNOWN_EVENTS={}
-for _,e in ipairs({'ADDON_ACTION_FORBIDDEN','ADDON_ACTION_BLOCKED','PLAYER_LOGIN','PLAYER_ENTERING_WORLD','PLAYER_GUILD_UPDATE','GUILD_ROSTER_UPDATE','GUILD_RANKS_UPDATE','GUILD_MOTD','PLAYER_REGEN_ENABLED','ENCOUNTER_END','BOSS_KILL'}) do KNOWN_EVENTS[e]=true end
+for _,e in ipairs({'ADDON_ACTION_FORBIDDEN','ADDON_ACTION_BLOCKED','PLAYER_LOGIN','PLAYER_ENTERING_WORLD','PLAYER_GUILD_UPDATE','GUILD_ROSTER_UPDATE','GUILD_RANKS_UPDATE','GUILD_MOTD','PLAYER_REGEN_ENABLED','ENCOUNTER_END','BOSS_KILL','GUILD_EVENT_LOG_UPDATE'}) do KNOWN_EVENTS[e]=true end
 function CreateFrame(kind,name,parent,template)
   local f=newObj(kind,name,parent); frames[#frames+1]=f
   if type(template)=='string' and template:find('Secure') then f.__protected=true end
@@ -243,6 +243,18 @@ function GetGuildRosterLastOnline(i)
   if not m or m.online then return nil end
   local days=math.floor((m.away or 0)/86400)
   return 0,0,days,0
+end
+-- The guild event log: GUILD_LOG={{kind,player1,player2,hoursAgo}}, listed oldest first like the game
+-- seems to (GUILD_LOG_NEWEST_FIRST=true lists it the other way round). Names are as the roster has them.
+GUILD_LOG=GUILD_LOG or {}
+LOG_QUERIES=0
+function QueryGuildEventLog() LOG_QUERIES=LOG_QUERIES+1 end
+function GetNumGuildEvents() return #GUILD_LOG end
+function GetGuildEventInfo(i)
+  local x=GUILD_LOG_NEWEST_FIRST and GUILD_LOG[#GUILD_LOG+1-i] or GUILD_LOG[i]
+  if not x then return nil end
+  local h=x[4] or 0
+  return x[1],x[2],x[3],0,0,0,math.floor(h/24),h%24
 end
 local function find(name) for _,m in ipairs(ROSTER) do if m.name==name then return m end end end
 CALLS={}
